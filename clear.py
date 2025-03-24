@@ -5,7 +5,7 @@ def clear_database():
     cursor = conn.cursor()
 
     # List of tables to clear
-    tables = ["users", "products", "cart", "orders"]
+    tables = ["users", "products", "cart", "orders","chat_messages","contact_messages","notifications","sqlite_sequence"]
 
     for table in tables:
         cursor.execute(f"DELETE FROM {table}")
