@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>View Messages</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/styles.css') }}">
+</head>
+<body>
+
+    <nav class="navbar">
+        <div class="logo">CRAFTCONNECT</div>
+        <ul class="nav-links">
+            <li><a href="{{ url_for('home') }}">Home</a></li>
+            <li><a href="{{ url_for('logout') }}">Logout</a></li>
+        </ul>
+    </nav>
+
+    <section class="messages-container">
+        <h2>Contact Messages</h2>
+        {% if messages %}
+            <table>
+                <tr>
+                    <th>Name</th>
+                    <th>Email</th>
+                    <th>Message</th>
+                    <th>Timestamp</th>
+                </tr>
+                {% for message in messages %}
+                <tr>
+                    <td>{{ message[0] }}</td>
+                    <td>{{ message[1] }}</td>
+                    <td>{{ message[2] }}</td>
+                    <td>{{ message[3] }}</td>
+                </tr>
+                {% endfor %}
+            </table>
+        {% else %}
+            <p>No messages yet.</p>
+        {% endif %}
+    </section>
+
+</body>
+</html>
