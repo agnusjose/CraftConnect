@@ -14,7 +14,7 @@ import base64
 
 app = Flask(__name__)
 app.secret_key = "your_secret_key_here"  # Change this to a strong secret key
-socketio = SocketIO(app, cors_allowed_origins="*")  # Enable WebSockets
+socketio = SocketIO(app) # Enable WebSockets
 active_chats = {}
 
 app.config['MAIL_SERVER'] = 'smtp.gmail.com'
@@ -255,8 +255,8 @@ def browse_products():
     products = cursor.fetchall()
     conn.close()
     
-    
     return render_template("browse_products.html", products=products)
+
 
 # Add to Cart
 @app.route('/add_to_cart/<int:product_id>', methods=["POST"])
@@ -496,27 +496,23 @@ def track_order():
 
     return render_template("track_order.html", orders=orders)
 
-@app.route('/check_messages/<int:order_id>')
-def check_messages(order_id):
-    if "user_id" not in session or session["user_type"] != "manufacturer":
-        return redirect(url_for("login"))
+@app.route('/contact_manufacturer/<int:product_id>/<int:manufacturer_id>')
+def contact_manufacturer(product_id, manufacturer_id):
+    # Logic to load chat interface between customer and manufacturer
+    return render_template('chat_interface.html', product_id=product_id, manufacturer_id=manufacturer_id)
 
-    try:
-        with sqlite3.connect("craftconnect.db", timeout=10) as conn:
-            cursor = conn.cursor()
-            cursor.execute('''
-                SELECT messages.id, messages.content, messages.timestamp, customers.name AS customer_name
-                FROM messages
-                JOIN customers ON messages.customer_id = customers.id
-                WHERE messages.order_id = ?
-            ''', (order_id,))
-            messages = cursor.fetchall()
-    except sqlite3.OperationalError as e:
-        print("Database error:", str(e))
-        flash("Failed to load messages due to database error.", "danger")
-        messages = []
+@app.route('/chat')
+def chat_interface():
+    return render_template('chat_interface.html')
 
-    return render_template("check_messages.html", messages=messages)
+# Handle incoming messages
+@socketio.on('send_message')
+def handle_message(data):
+    message = data['message']
+    sender = data['sender']  # 'customer' or 'manufacturer'
+    
+    # Broadcast the message to all connected clients
+    emit('receive_message', {'message': message, 'sender': sender}, broadcast=True)
 
 @app.route('/update_order_status/<int:order_id>', methods=["POST"])
 def update_order_status(order_id):
@@ -754,14 +750,7 @@ def submit_contact_form():
     flash('Your message has been sent successfully!', 'success')
     return redirect(url_for('contact'))  # Redirect back to the contact page
 
-@app.route('/view_messages')
-def view_messages():
-    conn = sqlite3.connect('craftconnect.db')
-    cursor = conn.cursor()
-    cursor.execute("SELECT name, email, content, timestamp FROM contact_messages ORDER BY timestamp DESC")
-    messages = cursor.fetchall()
-    conn.close()
-    return render_template('view_messages.html', messages=messages)
+
 
 @app.route("/cancel_order/<int:order_id>")
 def cancel_order(order_id):
