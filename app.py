@@ -334,8 +334,13 @@ def logout():
 def manufacturer_dashboard():
     if "user_id" not in session or session["user_type"] != "manufacturer":
         return redirect(url_for("login"))
-    
-    return render_template("manufacturer_dashboard.html", user_name=session["user_name"], profile_pic=session["profile_pic"])
+
+    # Pass the user_id (manufacturer ID) and other session details to the template
+    return render_template("manufacturer_dashboard.html", 
+                           user_name=session["user_name"], 
+                           profile_pic=session["profile_pic"], 
+                           manufacturer_id=session["user_id"])
+
 
 @app.route('/add_product', methods=["GET", "POST"])
 def add_product():
@@ -501,9 +506,26 @@ def contact_manufacturer(product_id, manufacturer_id):
     # Logic to load chat interface between customer and manufacturer
     return render_template('chat_interface.html', product_id=product_id, manufacturer_id=manufacturer_id)
 
-@app.route('/chat')
-def chat_interface():
-    return render_template('chat_interface.html')
+@app.route('/chat/<int:manufacturer_id>')
+def chat(manufacturer_id):
+    conn = sqlite3.connect("craftconnect.db")
+    cursor = conn.cursor()
+    
+    # Get manufacturer name
+    cursor.execute("SELECT name FROM users WHERE id = ?", (manufacturer_id,))
+    manufacturer_name = cursor.fetchone()[0]
+    
+    # Get previous chat messages
+    cursor.execute("""
+        SELECT sender, message FROM chat_messages
+        WHERE manufacturer_id = ?
+    """, (manufacturer_id,))
+    chat_messages = cursor.fetchall()
+    
+    conn.close()
+    
+    return render_template('chat_interface.html', manufacturer_name=manufacturer_name, chat_messages=chat_messages)
+
 
 # Handle incoming messages
 @socketio.on('send_message')
@@ -841,10 +863,7 @@ def get_db_connection():
     conn.row_factory = sqlite3.Row
     return conn
 
-# Route for chat page
-@app.route("/chat")
-def chat():
-    return render_template("chat.html")
+
 
 # API to fetch chat messages
 @app.route("/get_messages", methods=["GET"])
@@ -880,6 +899,25 @@ def send_message():
     conn.close()
 
     return jsonify({"status": "Message sent!"})
+
+@app.route('/view_messages/<int:manufacturer_id>')
+def view_messages(manufacturer_id):
+    conn = sqlite3.connect("craftconnect.db")
+    cursor = conn.cursor()
+
+    # Get all customers who have messaged the manufacturer
+    cursor.execute("""
+        SELECT DISTINCT chat_messages.customer_id, users.name 
+        FROM chat_messages
+        JOIN users ON chat_messages.customer_id = users.id
+        WHERE chat_messages.manufacturer_id = ?
+    """, (manufacturer_id,))
+    
+    conversations = cursor.fetchall()
+    conn.close()
+    
+    # Render template to show list of conversations
+    return render_template('view_messages.html', conversations=conversations, manufacturer_id=manufacturer_id)
 
 # Run Flask App
 if __name__ == "__main__":
