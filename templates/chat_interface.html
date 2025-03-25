@@ -45,9 +45,11 @@
         }
         .chat-message.customer {
             text-align: left;
+            color: blue;
         }
         .chat-message.manufacturer {
             text-align: right;
+            color: green;
         }
         .chat-input-container {
             display: flex;
@@ -74,10 +76,15 @@
 <body>
     <div class="chat-container">
         <div class="chat-header">
-            <h2>Chat with Manufacturer</h2>
+            <h2>Chat with {{ manufacturer_name }}</h2> <!-- Added dynamic manufacturer name -->
         </div>
         <div class="chat-box" id="chat-box">
-            <!-- Messages will be appended here dynamically -->
+            <!-- Messages will be dynamically added here -->
+            {% for message in chat_messages %}
+                <div class="chat-message {{ message.sender }}">
+                    <strong>{{ message.sender }}:</strong> {{ message.content }}
+                </div>
+            {% endfor %}
         </div>
         <div class="chat-input-container">
             <input type="text" id="chat-message" placeholder="Type your message...">
