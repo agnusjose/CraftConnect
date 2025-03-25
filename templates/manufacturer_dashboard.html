@@ -23,6 +23,10 @@
         <a href="{{ url_for('add_product') }}" class="button">Add New Product</a>
         <a href="{{ url_for('manage_products') }}" class="button">Manage Products</a>
         <a href="{{ url_for('manage_orders') }}" class="button">Manage Orders</a>
+        <a href="{{ url_for('view_messages', manufacturer_id=manufacturer_id) }}" class="button">
+            Check Messages
+        </a>
+        
 
         <h3></h3>
         <div class="orders-summary">
