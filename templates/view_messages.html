@@ -1,24 +1,45 @@
-<!-- view_messages.html -->
 <!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Customer Messages</title>
-    <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.3.1/css/bootstrap.min.css">
+    <title>Messages from Customers</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            padding: 20px;
+        }
+        .customer-list {
+            list-style-type: none;
+            padding: 0;
+        }
+        .customer-list li {
+            padding: 10px;
+            background-color: #f5f5f5;
+            margin-bottom: 5px;
+            border-radius: 5px;
+            cursor: pointer;
+        }
+        .customer-list li:hover {
+            background-color: #ddd;
+        }
+    </style>
 </head>
 <body>
-    <div class="container mt-4">
-        <h2>Messages from Customers</h2>
-        <ul class="list-group">
-            {% for customer_id, customer_name in conversations %}
-            <li class="list-group-item">
-                <a href="{{ url_for('chat', manufacturer_id=manufacturer_id, customer_id=customer_id) }}">
-                    {{ customer_name }}
-                </a>
+    <h1>Messages from Customers</h1>
+    <ul class="customer-list">
+        {% for customer in customers %}
+            <li onclick="viewChat('{{ customer.id }}')">
+                {{ customer.name }} (Customer ID: {{ customer.id }})
             </li>
-            {% endfor %}
-        </ul>
-    </div>
+        {% endfor %}
+    </ul>
+
+    <script>
+        function viewChat(customer_id) {
+            // Redirect to the chat interface with the selected customer
+            window.location.href = `/view_customer_chat/{{ manufacturer_id }}/${customer_id}`;
+        }
+    </script>
 </body>
 </html>
