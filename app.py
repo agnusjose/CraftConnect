@@ -863,9 +863,75 @@ def get_db_connection():
     conn.row_factory = sqlite3.Row
     return conn
 
+# Route for manufacturer to view customer messages (unchanged)
+@app.route('/view_messages/<int:manufacturer_id>')
+def view_messages(manufacturer_id):
+    if "user_id" not in session or session["user_type"] != "manufacturer":
+        return redirect(url_for("login"))
 
+    conn = get_db_connection()
+    cursor = conn.cursor()
 
-# API to fetch chat messages
+    # Fetch all customers who have sent messages to this manufacturer
+    cursor.execute("""
+        SELECT DISTINCT customers.id, customers.name
+        FROM chat_messages
+        JOIN users AS customers ON chat_messages.customer_id = customers.id
+        WHERE chat_messages.manufacturer_id = ?
+    """, (manufacturer_id,))
+
+    customers = cursor.fetchall()
+    conn.close()
+
+    return render_template("view_messages.html", customers=customers)
+
+# New Route to view chat with a selected customer
+@app.route('/view_customer_chat/<int:manufacturer_id>/<int:customer_id>')
+def view_customer_chat(manufacturer_id, customer_id):
+    if "user_id" not in session or session["user_type"] != "manufacturer":
+        return redirect(url_for("login"))
+
+    # Fetch chat history between the manufacturer and the specific customer
+    conn = get_db_connection()
+    cursor = conn.cursor()
+
+    cursor.execute("""
+        SELECT sender, message, timestamp
+        FROM chat_messages
+        WHERE customer_id = ? AND manufacturer_id = ?
+        ORDER BY timestamp ASC
+    """, (customer_id, manufacturer_id))
+
+    chat_messages = cursor.fetchall()
+    conn.close()
+
+    # Render the existing chat interface with the chat messages
+    return render_template("chat_interface.html", 
+                           chat_messages=chat_messages, 
+                           customer_id=customer_id, 
+                           manufacturer_id=manufacturer_id)
+
+# Chat interface route for customers/manufacturers (unchanged)
+@app.route('/chat_interface/<int:manufacturer_id>')
+def chat_interface(manufacturer_id):
+    if 'user_id' not in session:
+        return redirect(url_for('login'))
+
+    # Fetch chat history between customer and manufacturer from the database
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    cursor.execute("""
+        SELECT message, sender, timestamp 
+        FROM chat_messages 
+        WHERE (customer_id = ? AND manufacturer_id = ?) 
+        ORDER BY timestamp ASC
+    """, (session['user_id'], manufacturer_id))
+    chat_messages = cursor.fetchall()
+    conn.close()
+
+    return render_template('chat_interface.html', chat_messages=chat_messages, manufacturer_id=manufacturer_id, manufacturer_name="Manufacturer Name")
+
+# API to fetch chat messages (unchanged)
 @app.route("/get_messages", methods=["GET"])
 def get_messages():
     sender = request.args.get("sender")
@@ -884,7 +950,7 @@ def get_messages():
 
     return jsonify([dict(msg) for msg in messages])
 
-# API to send a message
+# API to send a message (unchanged)
 @app.route("/send_message", methods=["POST"])
 def send_message():
     data = request.json
@@ -900,26 +966,34 @@ def send_message():
 
     return jsonify({"status": "Message sent!"})
 
-@app.route('/view_messages/<int:manufacturer_id>')
-def view_messages(manufacturer_id):
-    conn = sqlite3.connect("craftconnect.db")
+# Handle sending and receiving messages in real-time using Socket.IO (unchanged)
+@socketio.on('send_message')
+def handle_send_message(data):
+    message = data['message']
+    sender = data['sender']  # This could be 'customer' or 'manufacturer'
+    manufacturer_id = data['manufacturer_id']
+
+    # Determine whether the sender is the customer or manufacturer
+    customer_id = session['user_id'] if session['user_type'] == 'customer' else None
+
+    # Save the message to the SQLite database
+    conn = get_db_connection()
     cursor = conn.cursor()
 
-    # Get all customers who have messaged the manufacturer
+    # Insert the message into the chat_messages table
     cursor.execute("""
-        SELECT DISTINCT chat_messages.customer_id, users.name 
-        FROM chat_messages
-        JOIN users ON chat_messages.customer_id = users.id
-        WHERE chat_messages.manufacturer_id = ?
-    """, (manufacturer_id,))
-    
-    conversations = cursor.fetchall()
+        INSERT INTO chat_messages (customer_id, manufacturer_id, message) 
+        VALUES (?, ?, ?)
+    """, (customer_id, manufacturer_id, message))
+    conn.commit()
     conn.close()
-    
-    # Render template to show list of conversations
-    return render_template('view_messages.html', conversations=conversations, manufacturer_id=manufacturer_id)
 
-# Run Flask App
-if __name__ == "__main__":
-    app.run(debug=True)
+    # Emit the message to both the sender and the recipient (real-time)
+    emit('receive_message', {'message': message, 'sender': sender}, room=manufacturer_id)
+
+if __name__ == '__main__':
+    socketio.run(app, debug=True)
+
+
+
 
