@@ -45,7 +45,7 @@
         }
         .chat-message.customer {
             text-align: left;
-            color: blue;
+            color: black;
         }
         .chat-message.manufacturer {
             text-align: right;
@@ -76,13 +76,13 @@
 <body>
     <div class="chat-container">
         <div class="chat-header">
-            <h2>Chat with {{ manufacturer_name }}</h2> <!-- Added dynamic manufacturer name -->
+            <h2>Chat with {{ manufacturer_name }}</h2> <!-- Dynamic manufacturer name -->
         </div>
         <div class="chat-box" id="chat-box">
             <!-- Messages will be dynamically added here -->
             {% for message in chat_messages %}
                 <div class="chat-message {{ message.sender }}">
-                    <strong>{{ message.sender }}:</strong> {{ message.content }}
+                    <strong>{{ message.sender }}:</strong> {{ message.message }}
                 </div>
             {% endfor %}
         </div>
@@ -96,7 +96,7 @@
         // Initialize Socket.IO
         var socket = io.connect('http://' + document.domain + ':' + location.port);
 
-        // Listen for incoming messages
+        // Listen for incoming messages and append them to the chat box
         socket.on('receive_message', function(msg) {
             var chatBox = document.getElementById('chat-box');
             var messageDiv = document.createElement('div');
@@ -111,11 +111,27 @@
         function sendMessage() {
             var messageInput = document.getElementById('chat-message');
             var message = messageInput.value;
+
             if (message.trim() !== "") {
-                socket.emit('send_message', {message: message, sender: 'customer'});  // You can adjust 'sender' based on user type
+                // Emit the message to the server using Socket.IO
+                socket.emit('send_message', {
+                    message: message,
+                    sender: 'customer',  // You may dynamically set this to 'customer' or 'manufacturer'
+                    manufacturer_id: "{{ manufacturer_id }}"  // This is dynamic and wrapped in quotes
+                });
+
+                // Append the message to the chat box on the sender's side immediately
+                var chatBox = document.getElementById('chat-box');
+                var messageDiv = document.createElement('div');
+                messageDiv.classList.add('chat-message', 'customer');
+                messageDiv.innerHTML = `<strong>customer:</strong> ${message}`;
+                chatBox.appendChild(messageDiv);
+                chatBox.scrollTop = chatBox.scrollHeight;  // Auto-scroll to bottom
+
                 messageInput.value = '';  // Clear input after sending
             }
         }
     </script>
+
 </body>
 </html>
