@@ -76,7 +76,7 @@
 <body>
     <div class="chat-container">
         <div class="chat-header">
-            <h2>Chat with {{ manufacturer_name }}</h2> <!-- Dynamic manufacturer name -->
+            <h2>Chat with {{ customer_name }}</h2> <!-- Assuming you're fetching the customer name for the manufacturer -->
         </div>
         <div class="chat-box" id="chat-box">
             <!-- Messages will be dynamically added here -->
@@ -95,6 +95,9 @@
     <script>
         // Initialize Socket.IO
         var socket = io.connect('http://' + document.domain + ':' + location.port);
+
+        // Identify whether the current user is a customer or manufacturer
+        var senderType = "{{ session['user_type'] }}";  // 'customer' or 'manufacturer'
 
         // Listen for incoming messages and append them to the chat box
         socket.on('receive_message', function(msg) {
@@ -116,15 +119,16 @@
                 // Emit the message to the server using Socket.IO
                 socket.emit('send_message', {
                     message: message,
-                    sender: 'customer',  // You may dynamically set this to 'customer' or 'manufacturer'
-                    manufacturer_id: "{{ manufacturer_id }}"  // This is dynamic and wrapped in quotes
+                    sender: senderType,  // Dynamic sender: 'customer' or 'manufacturer'
+                    manufacturer_id: "{{ manufacturer_id }}",  // Manufacturer ID
+                    customer_id: "{{ customer_id }}"  // Customer ID
                 });
 
                 // Append the message to the chat box on the sender's side immediately
                 var chatBox = document.getElementById('chat-box');
                 var messageDiv = document.createElement('div');
-                messageDiv.classList.add('chat-message', 'customer');
-                messageDiv.innerHTML = `<strong>customer:</strong> ${message}`;
+                messageDiv.classList.add('chat-message', senderType);
+                messageDiv.innerHTML = `<strong>${senderType}:</strong> ${message}`;
                 chatBox.appendChild(messageDiv);
                 chatBox.scrollTop = chatBox.scrollHeight;  // Auto-scroll to bottom
 
