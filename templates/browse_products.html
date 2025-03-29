@@ -30,10 +30,10 @@
                     <form action="{{ url_for('add_to_cart', product_id=product[0]) }}" method="POST">
                         <button type="submit" class="button">Add to Cart</button>
                     </form>
-                    <form action="{{ url_for('contact_manufacturer', product_id=product[0], manufacturer_id=product[6]) }}" method="GET">
+                    <form action="{{ url_for('contact_manufacturer', product_id=product[0], manufacturer_id=product[6], customer_id=session['user_id']) }}" method="GET">
+                        <!-- Passing customer_id from session -->
                         <button type="submit">Contact Manufacturer</button>
                     </form>
-                    
                 </div>
                 {% endfor %}
             </div>
