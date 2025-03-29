@@ -200,6 +200,8 @@ from werkzeug.security import check_password_hash
 
 @app.route('/login', methods=["GET", "POST"])
 def login():
+    user_type = request.form.get('user_type')  # "customer" or "manufacturer"
+    session['user_type'] = user_type
     if request.method == "POST":
         email = request.form["email"]
         password = request.form["password"]
@@ -964,18 +966,18 @@ def view_customer_chat(manufacturer_id, customer_id):
 def get_messages():
     customer_id = request.args.get("customer_id")
     manufacturer_id = request.args.get("manufacturer_id")
-    current_user_type = session.get('user_type')  # Get logged-in user's role
+    current_user_type = session.get('user_type')  # "customer" or "manufacturer"
 
     conn = get_db_connection()
     cursor = conn.cursor()
     cursor.execute('''
-        SELECT *, 
+        SELECT *,
                CASE 
                    WHEN customer_id IS NOT NULL THEN 'customer' 
                    ELSE 'manufacturer' 
                END AS sender_role
         FROM chat_messages 
-        WHERE (customer_id=? AND manufacturer_id=?) 
+        WHERE (customer_id=? AND manufacturer_id=?)
            OR (customer_id=? AND manufacturer_id=?)
         ORDER BY timestamp ASC
     ''', (customer_id, manufacturer_id, manufacturer_id, customer_id))
@@ -983,7 +985,7 @@ def get_messages():
     messages = []
     for msg in cursor.fetchall():
         msg_dict = dict(msg)
-        # Add 'is_sender' flag based on who is logged in
+        # Add is_sender flag (True if sender matches logged-in user)
         msg_dict['is_sender'] = (msg_dict['sender_role'] == current_user_type)
         messages.append(msg_dict)
 
@@ -993,40 +995,32 @@ def get_messages():
 @socketio.on('send_message')
 def handle_send_message(data):
     message = data['message']
-    sender_type = session.get('user_type')  # Use session instead of trusting client
+    sender = data['sender']  # This could be 'customer' or 'manufacturer'
     manufacturer_id = data['manufacturer_id']
-    customer_id = data['customer_id']
+    customer_id = data.get('customer_id')
 
-    # Save to DB (clear sender context)
+    # Determine whether the sender is the customer or manufacturer
+    if sender == 'customer':
+        customer_id = session['user_id']
+    elif sender == 'manufacturer':
+        manufacturer_id = session['user_id']
+
+    # Save the message to the SQLite database
     conn = get_db_connection()
     cursor = conn.cursor()
-    if sender_type == 'customer':
-        cursor.execute("""
-            INSERT INTO chat_messages (customer_id, manufacturer_id, message) 
-            VALUES (?, ?, ?)
-        """, (session['user_id'], manufacturer_id, message))
-    else:
-        cursor.execute("""
-            INSERT INTO chat_messages (customer_id, manufacturer_id, message) 
-            VALUES (?, ?, ?)
-        """, (customer_id, session['user_id'], message))
+
+    # Insert the message into the chat_messages table
+    cursor.execute("""
+        INSERT INTO chat_messages (customer_id, manufacturer_id, message) 
+        VALUES (?, ?, ?)
+    """, (customer_id, manufacturer_id, message))
     conn.commit()
     conn.close()
 
-    # Broadcast with sender role
-    room_id = f"{manufacturer_id}_{customer_id}"
-    emit('receive_message', {
-        'message': message,
-        'sender': sender_type,
-        'is_sender': False  # Receiver sees this as False
-    }, room=room_id, include_self=False)
+    # Emit the message to both the sender and the recipient in real-time
+    emit('receive_message', {'message': message, 'sender': sender}, room=manufacturer_id if sender == 'manufacturer' else customer_id)
 
-    # Confirm to sender (align right)
-    emit('receive_message', {
-        'message': message,
-        'sender': sender_type,
-        'is_sender': True  # Sender sees this as True
-    }, room=request.sid)  # Send only to sender
+
 
 
 # Handle sending and receiving messages in real-time using Socket.IO
