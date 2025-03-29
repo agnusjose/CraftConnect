@@ -7,6 +7,7 @@
     <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.0.1/socket.io.js"></script>
     <style>
+        /* Your CSS remains the same */
         body {
             font-family: Arial, sans-serif;
             margin: 0;
@@ -99,13 +100,14 @@
     <script>
         var socket = io();
         var chatBox = document.getElementById("chat-box");
-        var roomId = "{{ manufacturer_id }}_{{ customer_id }}";  
-    
-        socket.emit('join_room', roomId);  
-    
+        var roomId = "{{ manufacturer_id }}_{{ customer_id }}";
+        var userType = "{{ user_type }}";  // user_type is either "manufacturer" or "customer" from the backend
+
+        socket.emit('join_room', roomId);
+
         // Keep track of already received messages to prevent duplicates
         var receivedMessages = new Set();
-    
+
         // Function to append new messages
         function addMessage(sender, message, messageId) {
             if (messageId && receivedMessages.has(messageId)) {
@@ -114,49 +116,57 @@
             if (messageId) {
                 receivedMessages.add(messageId);
             }
-    
+
             var messageDiv = document.createElement("div");
             messageDiv.classList.add("chat-message");
-            messageDiv.classList.add(sender === "self" ? "sender" : "receiver");
+
+            // Check who the sender is (self or the other party) based on the user type
+            if ((userType === "manufacturer" && sender === "manufacturer") || 
+                (userType === "customer" && sender === "customer")) {
+                messageDiv.classList.add("sender");
+            } else {
+                messageDiv.classList.add("receiver");
+            }
+
             messageDiv.innerHTML = message;
             chatBox.appendChild(messageDiv);
-            chatBox.scrollTop = chatBox.scrollHeight;  
+            chatBox.scrollTop = chatBox.scrollHeight;
         }
-    
+
         // Load chat history once
         var chatMessages = JSON.parse('{{ chat_messages | tojson | safe }}');
         chatMessages.forEach(function(msg) {
-            addMessage(msg.sender, msg.message, msg.id);  
+            addMessage(msg.sender, msg.message, msg.id);
         });
-    
+
         // Handle incoming messages via Socket.IO (append only new messages)
         socket.on('receive_message', function(data) {
-            addMessage(data.sender, data.message, data.id);  
+            addMessage(data.sender, data.message, data.id);
         });
-    
+
         // Sending a message
         function sendMessage() {
             var messageInput = document.getElementById("chat-message");
             var message = messageInput.value.trim();
             if (message === "") return;
-    
+
             var data = {
                 message: message,
-                sender: "self",
+                sender: userType,  // Use userType to track the sender
                 manufacturer_id: "{{ manufacturer_id }}",
                 customer_id: "{{ customer_id }}"
             };
-    
+
             // Emit message to server via Socket.IO
             socket.emit('send_message', data);
-    
+
             // Append the message instantly for the sender
-            addMessage('self', message, Date.now()); 
-    
+            addMessage(userType, message, Date.now());
+
             // Clear input field
             messageInput.value = "";
         }
     </script>
-    
+
 </body>
 </html>
