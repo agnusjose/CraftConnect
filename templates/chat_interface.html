@@ -87,12 +87,8 @@
             <h2>Chat</h2>
         </div>
         <div class="chat-box" id="chat-box">
-            <!-- Messages will be dynamically added here -->
-            {% for message in chat_messages %}
-                <div class="chat-message {% if message.sender == 'self' %}sender{% else %}receiver{% endif %}">
-                    {{ message.message }}
-                </div>
-            {% endfor %}
+            <!-- Messages will be added here dynamically from the server -->
+            <!-- The loop for server-side rendered chat history has been removed -->
         </div>
         <div class="chat-input-container">
             <input type="text" id="chat-message" placeholder="Type your message...">
@@ -102,50 +98,60 @@
 
     <script>
         var socket = io();
-        var chatContainer = document.getElementById("chat-container");
+        var chatBox = document.getElementById("chat-box");
+        var roomId = "{{ manufacturer_id }}_{{ customer_id }}";  
+    
+        socket.emit('join_room', roomId);  
+    
+        // Keep track of already received messages to prevent duplicates
+        var receivedMessages = new Set();
     
         // Function to append new messages
-        function addMessage(sender, message) {
+        function addMessage(sender, message, messageId) {
+            if (messageId && receivedMessages.has(messageId)) {
+                return;  // Avoid duplicate messages
+            }
+            if (messageId) {
+                receivedMessages.add(messageId);
+            }
+    
             var messageDiv = document.createElement("div");
-            messageDiv.classList.add(sender === "self" ? "message-self" : "message-other");
-            messageDiv.innerHTML = `<strong>${sender === "self" ? "You" : "Other"}:</strong> ${message}`;
-            chatContainer.appendChild(messageDiv);
-            chatContainer.scrollTop = chatContainer.scrollHeight;  // Auto-scroll
+            messageDiv.classList.add("chat-message");
+            messageDiv.classList.add(sender === "self" ? "sender" : "receiver");
+            messageDiv.innerHTML = message;
+            chatBox.appendChild(messageDiv);
+            chatBox.scrollTop = chatBox.scrollHeight;  
         }
     
-        // Load chat history from the database
+        // Load chat history once
         var chatMessages = JSON.parse('{{ chat_messages | tojson | safe }}');
-        chatMessages.forEach(msg => {
-            addMessage(msg.sender, msg.message);
+        chatMessages.forEach(function(msg) {
+            addMessage(msg.sender, msg.message, msg.id);  
         });
     
-        // Handle incoming messages via Socket.IO
+        // Handle incoming messages via Socket.IO (append only new messages)
         socket.on('receive_message', function(data) {
-            addMessage(data.sender, data.message);
+            addMessage(data.sender, data.message, data.id);  
         });
     
         // Sending a message
         function sendMessage() {
-            var messageInput = document.getElementById("message-input");
+            var messageInput = document.getElementById("chat-message");
             var message = messageInput.value.trim();
             if (message === "") return;
     
             var data = {
                 message: message,
-                sender: "self",  // Always mark as self before sending
+                sender: "self",
                 manufacturer_id: "{{ manufacturer_id }}",
                 customer_id: "{{ customer_id }}"
             };
     
-            // Send to server
+            // Emit message to server via Socket.IO
             socket.emit('send_message', data);
     
-            // Send message to backend to store in database
-            fetch("/send_message", {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify(data)
-            });
+            // Append the message instantly for the sender
+            addMessage('self', message, Date.now()); 
     
             // Clear input field
             messageInput.value = "";
