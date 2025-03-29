@@ -1013,22 +1013,14 @@ def handle_send_message(data):
 @socketio.on('send_message')
 def handle_send_message(data):
     message = data['message']
-    sender = data['sender']  # This could be 'customer' or 'manufacturer'
+    sender = data['sender']  # This could be 'self', 'customer', or 'manufacturer'
     manufacturer_id = data['manufacturer_id']
-    customer_id = data.get('customer_id')  # Get customer_id from the incoming data
-
-    # Determine whether the sender is the customer or manufacturer
-    # If the sender is the manufacturer, ensure we get the correct customer_id
-    if session['user_type'] == 'customer':
-        current_user_id = session['user_id']  # The customer is sending the message
-    else:
-        current_user_id = manufacturer_id  # The manufacturer is sending the message
+    customer_id = data['customer_id']
 
     # Save the message to the SQLite database
     conn = get_db_connection()
     cursor = conn.cursor()
 
-    # Insert the message into the chat_messages table
     cursor.execute("""
         INSERT INTO chat_messages (customer_id, manufacturer_id, message) 
         VALUES (?, ?, ?)
@@ -1036,15 +1028,18 @@ def handle_send_message(data):
     conn.commit()
     conn.close()
 
-    # Create a room based on both customer_id and manufacturer_id for the chat
-    room_id = f"{manufacturer_id}_{customer_id}"  # Create a unique room ID for the pair
+    # Create a unique room ID for the manufacturer-customer pair
+    room_id = f"{manufacturer_id}_{customer_id}"
+
+    # Emit the message to the room, but exclude the sender to avoid duplicates
+    emit('receive_message', {'message': message, 'sender': sender}, room=room_id, include_self=False)
+
+
+@socketio.on('join_room')
+def on_join(data):
+    room_id = data  # The room_id sent from the client
     join_room(room_id)
-
-    # Emit the message to both the sender and the recipient in real-time using the room
-    emit('receive_message', {'message': message, 'sender': sender}, room=room_id)
-
-    # Optionally, if needed, emit the message to other connected clients (if necessary)
-    # emit('receive_message', {'message': message, 'sender': sender}, broadcast=True, include_self=False)
+    print(f"User joined room: {room_id}")
 
 
 if __name__ == '__main__':
