@@ -208,6 +208,8 @@ def login():
         try:
             with sqlite3.connect("craftconnect.db", timeout=10) as conn:
                 cursor = conn.cursor()
+
+                # Fetch user data from the database
                 cursor.execute("SELECT * FROM users WHERE email=?", (email,))
                 user = cursor.fetchone()
                 
@@ -216,30 +218,39 @@ def login():
                 else:
                     print("No user found with that email")
 
+                # Verify password (user[3] stores hashed password)
                 if user and check_password_hash(user[3], password):
-                    session["user_id"] = user[0]
-                    session["user_name"] = user[1]
-                    session["user_type"] = user[4]
-                    session["profile_pic"] = user[5]
+                    session["user_id"] = user[0]         # Store user ID in session
+                    session["user_name"] = user[1]       # Store user name in session
+                    session["user_type"] = user[4]       # Store user type (manufacturer or customer)
+                    session["profile_pic"] = user[5]     # Store profile pic if needed
+                    
                     flash("Login successful!", "success")
                     print("Login successful!")
 
+                    # Redirect based on user type (customer or manufacturer)
                     if user[4] == "manufacturer":
                         return redirect(url_for("manufacturer_dashboard"))
-                    else:
+                    elif user[4] == "customer":  # Explicit handling for customers
                         return redirect(url_for("customer_dashboard"))
+                    else:
+                        flash("User type is not recognized.", "danger")
+                        return redirect(url_for("login"))
+
                 else:
                     flash("Invalid email or password", "danger")
                     print("Invalid email or password")
-        
+
         except sqlite3.OperationalError as e:
             print("Database error:", str(e))
             return jsonify({"error": str(e)}), 500
+
         except Exception as e:
             print("Error:", str(e))
             return jsonify({"error": str(e)}), 500
 
     return render_template("login.html")
+
 
 # Browse Products
 @app.route('/browse_products')
@@ -500,32 +511,6 @@ def track_order():
         flash(f"Failed to load orders: {e}", "danger")
 
     return render_template("track_order.html", orders=orders)
-
-@app.route('/contact_manufacturer/<int:product_id>/<int:manufacturer_id>')
-def contact_manufacturer(product_id, manufacturer_id):
-    # Logic to load chat interface between customer and manufacturer
-    return render_template('chat_interface.html', product_id=product_id, manufacturer_id=manufacturer_id)
-
-@app.route('/chat/<int:manufacturer_id>')
-def chat(manufacturer_id):
-    conn = sqlite3.connect("craftconnect.db")
-    cursor = conn.cursor()
-    
-    # Get manufacturer name
-    cursor.execute("SELECT name FROM users WHERE id = ?", (manufacturer_id,))
-    manufacturer_name = cursor.fetchone()[0]
-    
-    # Get previous chat messages
-    cursor.execute("""
-        SELECT sender, message FROM chat_messages
-        WHERE manufacturer_id = ?
-    """, (manufacturer_id,))
-    chat_messages = cursor.fetchall()
-    
-    conn.close()
-    
-    return render_template('chat_interface.html', manufacturer_name=manufacturer_name, chat_messages=chat_messages)
-
 
 # Handle incoming messages
 @socketio.on('send_message')
@@ -883,7 +868,55 @@ def view_messages(manufacturer_id):
     customers = cursor.fetchall()
     conn.close()
 
-    return render_template("view_messages.html", customers=customers)
+    # Pass both customers and manufacturer_id to the template
+    return render_template("view_messages.html", customers=customers, manufacturer_id=manufacturer_id)
+
+@app.route('/contact_manufacturer/<int:product_id>/<int:manufacturer_id>/<int:customer_id>', methods=["GET"])
+def contact_manufacturer(product_id, manufacturer_id, customer_id):
+    try:
+        # Connect to the SQLite database
+        with sqlite3.connect("craftconnect.db", timeout=10) as conn:
+            cursor = conn.cursor()
+
+            # Fetch the manufacturer and customer names
+            cursor.execute("SELECT name FROM users WHERE id=?", (manufacturer_id,))
+            manufacturer_name = cursor.fetchone()
+
+            cursor.execute("SELECT name FROM users WHERE id=?", (customer_id,))
+            customer_name = cursor.fetchone()
+
+            # Fetch the chat history between this manufacturer and customer
+            cursor.execute("""
+                SELECT customer_id, manufacturer_id, message, timestamp
+                FROM chat_messages
+                WHERE manufacturer_id=? AND customer_id=?
+                ORDER BY timestamp ASC
+            """, (manufacturer_id, customer_id))
+            chat_messages = cursor.fetchall()
+
+            # Render the chat interface with manufacturer name and chat history
+            return render_template(
+                "chat_interface.html", 
+                manufacturer_name=manufacturer_name[0] if manufacturer_name else "Manufacturer",
+                customer_name=customer_name[0] if customer_name else "Customer",
+                manufacturer_id=manufacturer_id,
+                customer_id=customer_id,
+                chat_messages=[
+                    {
+                        'sender': 'customer' if msg[0] == customer_id else 'manufacturer',  # Determine the sender based on customer_id
+                        'message': msg[2],
+                        'timestamp': msg[3]
+                    } for msg in chat_messages
+                ]
+            )
+
+    except sqlite3.OperationalError as e:
+        print("Database error:", str(e))
+        return jsonify({"error": str(e)}), 500
+    except Exception as e:
+        print("Error:", str(e))
+        return jsonify({"error": str(e)}), 500
+
 
 # New Route to view chat with a selected customer
 @app.route('/view_customer_chat/<int:manufacturer_id>/<int:customer_id>')
@@ -895,86 +928,68 @@ def view_customer_chat(manufacturer_id, customer_id):
     conn = get_db_connection()
     cursor = conn.cursor()
 
+    # Modify the query to ignore rows where both customer_id and manufacturer_id are NULL
     cursor.execute("""
-        SELECT sender, message, timestamp
+        SELECT customer_id, manufacturer_id, message, timestamp
         FROM chat_messages
-        WHERE customer_id = ? AND manufacturer_id = ?
+        WHERE customer_id = ? AND manufacturer_id = ? AND (customer_id IS NOT NULL OR manufacturer_id IS NOT NULL)
         ORDER BY timestamp ASC
     """, (customer_id, manufacturer_id))
 
     chat_messages = cursor.fetchall()
     conn.close()
 
-    # Render the existing chat interface with the chat messages
+    # Convert the fetched messages to include a 'sender' field
+    formatted_messages = []
+    for message in chat_messages:
+        if message['customer_id'] == customer_id:
+            sender = 'customer'
+        else:
+            sender = 'manufacturer'
+        formatted_messages.append({
+            'sender': sender,
+            'message': message['message'],
+            'timestamp': message['timestamp']
+        })
+
+    # Render the chat interface with chat messages, and pass customer_id and manufacturer_id
     return render_template("chat_interface.html", 
-                           chat_messages=chat_messages, 
+                           chat_messages=formatted_messages, 
                            customer_id=customer_id, 
                            manufacturer_id=manufacturer_id)
 
-# Chat interface route for customers/manufacturers (unchanged)
-@app.route('/chat_interface/<int:manufacturer_id>')
-def chat_interface(manufacturer_id):
-    if 'user_id' not in session:
-        return redirect(url_for('login'))
 
-    # Fetch chat history between customer and manufacturer from the database
-    conn = get_db_connection()
-    cursor = conn.cursor()
-    cursor.execute("""
-        SELECT message, sender, timestamp 
-        FROM chat_messages 
-        WHERE (customer_id = ? AND manufacturer_id = ?) 
-        ORDER BY timestamp ASC
-    """, (session['user_id'], manufacturer_id))
-    chat_messages = cursor.fetchall()
-    conn.close()
-
-    return render_template('chat_interface.html', chat_messages=chat_messages, manufacturer_id=manufacturer_id, manufacturer_name="Manufacturer Name")
-
-# API to fetch chat messages (unchanged)
+# Fetch chat messages via API (unchanged)
 @app.route("/get_messages", methods=["GET"])
 def get_messages():
-    sender = request.args.get("sender")
-    receiver = request.args.get("receiver")
+    customer_id = request.args.get("customer_id")
+    manufacturer_id = request.args.get("manufacturer_id")
 
     conn = get_db_connection()
     cursor = conn.cursor()
     cursor.execute('''
         SELECT * FROM chat_messages 
-        WHERE (sender=? AND receiver=?) OR (sender=? AND receiver=?) 
+        WHERE (customer_id=? AND manufacturer_id=?) 
         ORDER BY timestamp ASC
-    ''', (sender, receiver, receiver, sender))
+    ''', (customer_id, manufacturer_id))
 
     messages = cursor.fetchall()
     conn.close()
 
     return jsonify([dict(msg) for msg in messages])
 
-# API to send a message (unchanged)
-@app.route("/send_message", methods=["POST"])
-def send_message():
-    data = request.json
-    sender = data["sender"]
-    receiver = data["receiver"]
-    message = data["message"]
-
-    conn = get_db_connection()
-    cursor = conn.cursor()
-    cursor.execute("INSERT INTO chat_messages (sender, receiver, message) VALUES (?, ?, ?)", (sender, receiver, message))
-    conn.commit()
-    conn.close()
-
-    return jsonify({"status": "Message sent!"})
-
-# Handle sending and receiving messages in real-time using Socket.IO (unchanged)
 @socketio.on('send_message')
 def handle_send_message(data):
     message = data['message']
     sender = data['sender']  # This could be 'customer' or 'manufacturer'
     manufacturer_id = data['manufacturer_id']
+    customer_id = data.get('customer_id')
 
     # Determine whether the sender is the customer or manufacturer
-    customer_id = session['user_id'] if session['user_type'] == 'customer' else None
+    if sender == 'customer':
+        customer_id = session['user_id']
+    elif sender == 'manufacturer':
+        manufacturer_id = session['user_id']
 
     # Save the message to the SQLite database
     conn = get_db_connection()
@@ -988,8 +1003,49 @@ def handle_send_message(data):
     conn.commit()
     conn.close()
 
-    # Emit the message to both the sender and the recipient (real-time)
-    emit('receive_message', {'message': message, 'sender': sender}, room=manufacturer_id)
+    # Emit the message to both the sender and the recipient in real-time
+    emit('receive_message', {'message': message, 'sender': sender}, room=manufacturer_id if sender == 'manufacturer' else customer_id)
+
+
+
+
+# Handle sending and receiving messages in real-time using Socket.IO
+@socketio.on('send_message')
+def handle_send_message(data):
+    message = data['message']
+    sender = data['sender']  # This could be 'customer' or 'manufacturer'
+    manufacturer_id = data['manufacturer_id']
+    customer_id = data.get('customer_id')  # Get customer_id from the incoming data
+
+    # Determine whether the sender is the customer or manufacturer
+    # If the sender is the manufacturer, ensure we get the correct customer_id
+    if session['user_type'] == 'customer':
+        current_user_id = session['user_id']  # The customer is sending the message
+    else:
+        current_user_id = manufacturer_id  # The manufacturer is sending the message
+
+    # Save the message to the SQLite database
+    conn = get_db_connection()
+    cursor = conn.cursor()
+
+    # Insert the message into the chat_messages table
+    cursor.execute("""
+        INSERT INTO chat_messages (customer_id, manufacturer_id, message) 
+        VALUES (?, ?, ?)
+    """, (customer_id, manufacturer_id, message))
+    conn.commit()
+    conn.close()
+
+    # Create a room based on both customer_id and manufacturer_id for the chat
+    room_id = f"{manufacturer_id}_{customer_id}"  # Create a unique room ID for the pair
+    join_room(room_id)
+
+    # Emit the message to both the sender and the recipient in real-time using the room
+    emit('receive_message', {'message': message, 'sender': sender}, room=room_id)
+
+    # Optionally, if needed, emit the message to other connected clients (if necessary)
+    # emit('receive_message', {'message': message, 'sender': sender}, broadcast=True, include_self=False)
+
 
 if __name__ == '__main__':
     socketio.run(app, debug=True)
