@@ -1074,19 +1074,20 @@ def upload_image():
     conn.commit()
 
     # Emit the image message via Socket.IO for real-time communication
+    room_id = f"{manufacturer_id}_{customer_id}"  # Use the same format as in your JavaScript for room ID
+
     data = {
-        "message": None,  # No text message, only image
-        "image_url": image_url,
+        "message": image_url,  # Send the image_url as the message for easier handling
+        "image_url": image_url,  # Also keep the image_url explicitly
         "customer_id": customer_id,
         "manufacturer_id": manufacturer_id,
         "sender": sender,
         "is_image": True  # Flag this as an image message
     }
 
-    socketio.emit('send_message', data, room=manufacturer_id if sender == 'customer' else customer_id)
+    socketio.emit('receive_message', data, room=room_id)  # Send to the correct room
 
-    # Return the image URL as a JSON response
-    return jsonify({"image_url": image_url})
+    return jsonify({"image_url": image_url})  # Respond with the image URL
 
 
 
