@@ -93,71 +93,130 @@
         </div>
         <div class="chat-input-container">
             <input type="text" id="chat-message" placeholder="Type your message...">
+            <input type="file" id="image-input" accept="image/*">
             <button onclick="sendMessage()">Send</button>
         </div>
     </div>
 
     <script>
-        var socket = io();
-        var chatBox = document.getElementById("chat-box");
-        var roomId = "{{ manufacturer_id }}_{{ customer_id }}";
-        var userType = "{{ user_type }}";  // user_type is either "manufacturer" or "customer" from the backend
+    var socket = io();
+    var chatBox = document.getElementById("chat-box");
+    var roomId = "{{ manufacturer_id }}_{{ customer_id }}";
+    var userType = "{{ user_type }}";  // user_type is either "manufacturer" or "customer" from the backend
 
-        socket.emit('join_room', roomId);
+    socket.emit('join_room', roomId);
 
-        // Keep track of already received messages to prevent duplicates
-        var receivedMessages = new Set();
+    // Keep track of already received messages to prevent duplicates
+    var receivedMessages = new Set();
 
-        // Function to append new messages
-        function addMessage(sender, message, is_sender, messageId) {
+    // Function to append new messages
+    function addMessage(sender, message, is_sender, messageId, isImage = false, image_url = null) {
     if (messageId && receivedMessages.has(messageId)) return;
     if (messageId) receivedMessages.add(messageId);
 
     var messageDiv = document.createElement("div");
     messageDiv.classList.add("chat-message");
-    messageDiv.classList.add(is_sender ? "sender" : "receiver");  // Key change
-    messageDiv.textContent = message;
+    messageDiv.classList.add(is_sender ? "sender" : "receiver");
+
+    if (isImage && image_url) {  // Correctly use the image_url here
+        var img = document.createElement("img");
+        img.src = image_url;  // Use image_url that is passed as a parameter
+        console.log("Image URL:", image_url);  // Log the URL for debugging
+        img.style.maxWidth = "200px";
+        img.alt = "Image message";  // Set a max width for images
+        messageDiv.appendChild(img);
+    } else {
+        messageDiv.textContent = message;
+    }
+
     chatBox.appendChild(messageDiv);
     chatBox.scrollTop = chatBox.scrollHeight;
 }
 
-        // Load chat history once
-        var chatMessages = JSON.parse('{{ chat_messages | tojson | safe }}');
-        // Load history (modify loop)
-chatMessages.forEach(function(msg) {
-    addMessage(msg.sender_role, msg.message, msg.is_sender, msg.id);
+
+    // Load chat history once
+    var chatMessages = JSON.parse('{{ chat_messages | tojson | safe }}');
+    chatMessages.forEach(function(msg) {
+    addMessage(msg.sender_role, msg.message, msg.is_sender, msg.id, msg.is_image, msg.image_url);
 });
 
-// Handle incoming messages
-socket.on('receive_message', function(data) {
-    addMessage(data.sender, data.message, data.is_sender, Date.now());
+
+    // Handle incoming messages
+    socket.on('receive_message', function(data) {
+    if (data.is_image) {
+        addMessage(data.sender, data.message, data.is_sender, Date.now(), true, data.image_url);
+    } else {
+        addMessage(data.sender, data.message, data.is_sender, Date.now(), false);
+    }
 });
 
-// Send message (no changes needed to sendMessage())
 
-        // Sending a message
-        function sendMessage() {
-            var messageInput = document.getElementById("chat-message");
-            var message = messageInput.value.trim();
-            if (message === "") return;
+    // Function to send messages
+    function sendMessage() {
+        var messageInput = document.getElementById("chat-message");
+        var imageInput = document.getElementById("image-input");
 
-            var data = {
-                message: message,
-                sender: userType,  // Use userType to track the sender
-                manufacturer_id: "{{ manufacturer_id }}",
-                customer_id: "{{ customer_id }}"
-            };
+        var message = messageInput.value.trim();
+        var imageFile = imageInput.files[0];  // Get the file from the input field // Make sure there is either a message or an image
 
-            // Emit message to server via Socket.IO
+        var data = {
+            message: message,
+            sender: userType,
+            manufacturer_id: "{{ manufacturer_id }}",
+            customer_id: "{{ customer_id }}",
+            is_image: imageFile ? true : false  // Add a flag for whether it's an image
+        };
+
+        if (imageFile) {
+            // Create FormData for the image upload
+            var formData = new FormData();
+            formData.append('image', imageFile);
+            formData.append('message_data', JSON.stringify(data));
+
+            // Use XMLHttpRequest or fetch API to upload the image
+            var xhr = new XMLHttpRequest();
+            xhr.open("POST", "/upload_image", true);  // Assuming you have a Flask route /upload_image
+            xhr.onload = function () {
+    if (xhr.status === 200) {
+        var response = JSON.parse(xhr.responseText);
+        data.message = response.image_url;
+        data.is_image = true;
+
+        // Emit the image message via Socket.IO
+        socket.emit('send_message', data);
+
+        // Display the image in the chat for the sender instantly
+        addMessage(userType, response.image_url, true, Date.now(), true, response.image_url);
+    }
+};
+
+            xhr.send(formData);
+        } else {
+            // Emit text message via Socket.IO
             socket.emit('send_message', data);
 
-            // Append the message instantly for the sender
-            addMessage(userType, message, Date.now());
+            // Append the text message instantly for the sender
+            addMessage(userType, message, true, Date.now(), false);        }
 
-            // Clear input field
-            messageInput.value = "";
+       // Handle messages from the server
+    socket.on('send_message', function(data) {
+        if (data.is_image) {
+            // Display the image in the chat
+            addMessage(data.sender, data.message, data.is_sender, Date.now(), true, data.image_url);
+        } else {
+            // Display the text message
+            addMessage(data.sender, data.message, data.is_sender, Date.now(), false);
         }
-    </script>
+    });
+
+
+
+        // Clear the input fields
+        messageInput.value = "";
+        imageInput.value = null;
+    }
+</script>
+
 
 </body>
 </html>
