@@ -127,6 +127,19 @@ def init_db():
             timestamp DATETIME DEFAULT CURRENT_TIMESTAMP
         )
     ''')
+
+    cursor.execute('''
+        CREATE TABLE IF NOT EXISTS chat_messages (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    customer_id INTEGER,
+    manufacturer_id INTEGER,
+    message TEXT,
+    is_image INTEGER DEFAULT 0,  -- 0 for text, 1 for image
+    image_url TEXT,              -- URL for the uploaded image
+    timestamp DATETIME DEFAULT CURRENT_TIMESTAMP
+)
+
+    ''')
     def update_orders_table():
         conn = sqlite3.connect("craftconnect.db")
         cursor = conn.cursor()
@@ -994,10 +1007,12 @@ def get_messages():
 
 @socketio.on('send_message')
 def handle_send_message(data):
-    message = data['message']
-    sender = data['sender']  # This could be 'customer' or 'manufacturer'
+    # Check if the message is an image
+    is_image = data.get('is_image', False)
+    message = data['message'] if not is_image else data['image_url']  # Store URL for image
+    sender = data['sender']
     manufacturer_id = data['manufacturer_id']
-    customer_id = data.get('customer_id')
+    customer_id = data['customer_id']
 
     # Determine whether the sender is the customer or manufacturer
     if sender == 'customer':
@@ -1005,48 +1020,77 @@ def handle_send_message(data):
     elif sender == 'manufacturer':
         manufacturer_id = session['user_id']
 
-    # Save the message to the SQLite database
-    conn = get_db_connection()
-    cursor = conn.cursor()
-
-    # Insert the message into the chat_messages table
-    cursor.execute("""
-        INSERT INTO chat_messages (customer_id, manufacturer_id, message) 
-        VALUES (?, ?, ?)
-    """, (customer_id, manufacturer_id, message))
-    conn.commit()
-    conn.close()
-
-    # Emit the message to both the sender and the recipient in real-time
-    emit('receive_message', {'message': message, 'sender': sender}, room=manufacturer_id if sender == 'manufacturer' else customer_id)
-
-
-
-
-# Handle sending and receiving messages in real-time using Socket.IO
-@socketio.on('send_message')
-def handle_send_message(data):
-    message = data['message']
-    sender = data['sender']  # This could be 'self', 'customer', or 'manufacturer'
-    manufacturer_id = data['manufacturer_id']
-    customer_id = data['customer_id']
-
-    # Save the message to the SQLite database
+    # Save the message or image URL in the database
     conn = get_db_connection()
     cursor = conn.cursor()
 
     cursor.execute("""
-        INSERT INTO chat_messages (customer_id, manufacturer_id, message) 
-        VALUES (?, ?, ?)
-    """, (customer_id, manufacturer_id, message))
+        INSERT INTO chat_messages (customer_id, manufacturer_id, message, is_image) 
+        VALUES (?, ?, ?, ?)
+    """, (customer_id, manufacturer_id, message, int(is_image)))  # is_image is 1 for image, 0 for text
+
     conn.commit()
     conn.close()
 
-    # Create a unique room ID for the manufacturer-customer pair
+    # Emit the message or image URL in real-time to the room
     room_id = f"{manufacturer_id}_{customer_id}"
+    emit('receive_message', {'message': message, 'sender': sender, 'is_image': is_image}, room=room_id, include_self=False)
 
-    # Emit the message to the room, but exclude the sender to avoid duplicates
-    emit('receive_message', {'message': message, 'sender': sender}, room=room_id, include_self=False)
+import os
+from flask import request, jsonify
+
+UPLOAD_FOLDER = os.path.join('static', 'uploads')
+  # Update this to the actual path where you store images
+@app.route('/upload_image', methods=['POST'])
+def upload_image():
+    # Get the image file and message data from the request
+    image = request.files['image']
+    message_data = request.form.get('message_data')
+    message_data = json.loads(message_data)  # Convert the JSON string back to a dictionary
+
+    # Extract customer and manufacturer IDs, and other message details
+    customer_id = message_data.get('customer_id')
+    manufacturer_id = message_data.get('manufacturer_id')
+    sender = message_data.get('sender')
+    
+    # Save the image to your upload folder
+    image_filename = image.filename
+    image_path = os.path.join(app.config["UPLOAD_FOLDER"], image_filename)
+    image.save(image_path)
+
+    # Construct the URL for the image
+    image_url = f"/static/uploads/{image_filename}"
+
+    # Save the image message to the database
+    conn = get_db_connection()  # Make sure you have a function that returns a DB connection
+    cursor = conn.cursor()
+    
+    # Insert the message into the chat_messages table, setting is_image to 1 and saving image_url
+    cursor.execute("""
+        INSERT INTO chat_messages (customer_id, manufacturer_id, message, is_image, image_url) 
+        VALUES (?, ?, ?, ?, ?)
+    """, (customer_id, manufacturer_id, None, 1, image_url))  # message is None for images, image_url is set
+
+    conn.commit()
+
+    # Emit the image message via Socket.IO for real-time communication
+    data = {
+        "message": None,  # No text message, only image
+        "image_url": image_url,
+        "customer_id": customer_id,
+        "manufacturer_id": manufacturer_id,
+        "sender": sender,
+        "is_image": True  # Flag this as an image message
+    }
+
+    socketio.emit('send_message', data, room=manufacturer_id if sender == 'customer' else customer_id)
+
+    # Return the image URL as a JSON response
+    return jsonify({"image_url": image_url})
+
+
+
+
 
 
 @socketio.on('join_room')
