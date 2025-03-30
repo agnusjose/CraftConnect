@@ -7,7 +7,6 @@
     <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.0.1/socket.io.js"></script>
     <style>
-        /* Your CSS remains the same */
         body {
             font-family: Arial, sans-serif;
             margin: 0;
@@ -87,10 +86,7 @@
         <div class="chat-header">
             <h2>Chat</h2>
         </div>
-        <div class="chat-box" id="chat-box">
-            <!-- Messages will be added here dynamically from the server -->
-            <!-- The loop for server-side rendered chat history has been removed -->
-        </div>
+        <div class="chat-box" id="chat-box"></div>
         <div class="chat-input-container">
             <input type="text" id="chat-message" placeholder="Type your message...">
             <input type="file" id="image-input" accept="image/*">
@@ -99,124 +95,125 @@
     </div>
 
     <script>
-    var socket = io();
-    var chatBox = document.getElementById("chat-box");
-    var roomId = "{{ manufacturer_id }}_{{ customer_id }}";
-    var userType = "{{ user_type }}";  // user_type is either "manufacturer" or "customer" from the backend
+        var socket = io();
+        var chatBox = document.getElementById("chat-box");
+        var roomId = "{{ manufacturer_id }}_{{ customer_id }}";
+        var userType = "{{ user_type }}";  // "manufacturer" or "customer" from the backend
+        var receivedMessages = new Set();  // To prevent duplicate messages
 
-    socket.emit('join_room', roomId);
+        // Join the room
+        socket.emit('join_room', roomId);
 
-    // Keep track of already received messages to prevent duplicates
-    var receivedMessages = new Set();
+        // Function to append new messages
+        function addMessage(sender, message, is_sender, messageId, isImage = false, image_url = null) {
+            if (messageId && receivedMessages.has(messageId)) return;
+            if (messageId) receivedMessages.add(messageId);
 
-    // Function to append new messages
-    function addMessage(sender, message, is_sender, messageId, isImage = false, image_url = null) {
-    if (messageId && receivedMessages.has(messageId)) return;
-    if (messageId) receivedMessages.add(messageId);
+            var messageDiv = document.createElement("div");
+            messageDiv.classList.add("chat-message");
+            messageDiv.classList.add(is_sender ? "sender" : "receiver");
 
-    var messageDiv = document.createElement("div");
-    messageDiv.classList.add("chat-message");
-    messageDiv.classList.add(is_sender ? "sender" : "receiver");
+            if (isImage && image_url) {
+                var img = document.createElement("img");
+                img.src = image_url;
+                img.style.maxWidth = "200px";
+                img.alt = "Image message";
+                messageDiv.appendChild(img);
+            } else {
+                messageDiv.textContent = message;
+            }
 
-    if (isImage && image_url) {  // Correctly use the image_url here
-        var img = document.createElement("img");
-        img.src = image_url;  // Use image_url that is passed as a parameter
-        console.log("Image URL:", image_url);  // Log the URL for debugging
-        img.style.maxWidth = "200px";
-        img.alt = "Image message";  // Set a max width for images
-        messageDiv.appendChild(img);
-    } else {
-        messageDiv.textContent = message;
-    }
+            chatBox.appendChild(messageDiv);
+            chatBox.scrollTop = chatBox.scrollHeight;  // Scroll to the bottom
+        }
 
-    chatBox.appendChild(messageDiv);
-    chatBox.scrollTop = chatBox.scrollHeight;
-}
+        // Load chat history once
+        var chatMessages = JSON.parse('{{ chat_messages | tojson | safe }}');
+        chatMessages.forEach(function(msg) {
+            addMessage(msg.sender_role, msg.message, msg.is_sender, msg.id, msg.is_image, msg.image_url);
+        });
 
+        // Receive new messages from the server
+        var roomId = "{{ manufacturer_id }}_{{ customer_id }}";  // Ensure room ID is correct
+socket.emit('join_room', roomId);
 
-    // Load chat history once
-    var chatMessages = JSON.parse('{{ chat_messages | tojson | safe }}');
-    chatMessages.forEach(function(msg) {
-    addMessage(msg.sender_role, msg.message, msg.is_sender, msg.id, msg.is_image, msg.image_url);
-});
-
-
-    // Handle incoming messages
-    socket.on('receive_message', function(data) {
+// Listen for real-time messages
+socket.on('receive_message', function(data) {
     if (data.is_image) {
-        addMessage(data.sender, data.message, data.is_sender, Date.now(), true, data.image_url);
+        addMessage(data.sender, null, data.is_sender, Date.now(), true, data.message);  // Image message
     } else {
-        addMessage(data.sender, data.message, data.is_sender, Date.now(), false);
+        addMessage(data.sender, data.message, data.is_sender, Date.now(), false);  // Text message
     }
 });
 
+        // Send a message
+// Function to send messages (adjustment here)
+function sendMessage() {
+    var messageInput = document.getElementById("chat-message");
+    var imageInput = document.getElementById("image-input");
 
-    // Function to send messages
-    function sendMessage() {
-        var messageInput = document.getElementById("chat-message");
-        var imageInput = document.getElementById("image-input");
+    var message = messageInput.value.trim();
+    var imageFile = imageInput.files[0];  // Get the file from the input field
 
-        var message = messageInput.value.trim();
-        var imageFile = imageInput.files[0];  // Get the file from the input field // Make sure there is either a message or an image
+    var data = {
+        message: message,
+        sender: userType,  // 'manufacturer' or 'customer'
+        manufacturer_id: "{{ manufacturer_id }}",
+        customer_id: "{{ customer_id }}",
+        is_image: imageFile ? true : false
+    };
 
-        var data = {
-            message: message,
-            sender: userType,
-            manufacturer_id: "{{ manufacturer_id }}",
-            customer_id: "{{ customer_id }}",
-            is_image: imageFile ? true : false  // Add a flag for whether it's an image
+    if (imageFile) {
+        // Create FormData for the image upload
+        var formData = new FormData();
+        formData.append('image', imageFile);
+        formData.append('message_data', JSON.stringify(data));
+
+        // Use XMLHttpRequest or fetch API to upload the image
+        var xhr = new XMLHttpRequest();
+        xhr.open("POST", "/upload_image", true);  // Assuming you have a Flask route /upload_image
+        xhr.onload = function () {
+            if (xhr.status === 200) {
+                var response = JSON.parse(xhr.responseText);
+                data.message = response.image_url;
+                data.is_image = true;
+
+                // Only append the message for the sender locally, not via the socket response
+                addMessage(userType, response.image_url, true, Date.now(), true, response.image_url);
+
+                // Emit the image message via Socket.IO, but don't append it on receive for the sender
+                socket.emit('send_message', data);
+            }
         };
 
-        if (imageFile) {
-            // Create FormData for the image upload
-            var formData = new FormData();
-            formData.append('image', imageFile);
-            formData.append('message_data', JSON.stringify(data));
-
-            // Use XMLHttpRequest or fetch API to upload the image
-            var xhr = new XMLHttpRequest();
-            xhr.open("POST", "/upload_image", true);  // Assuming you have a Flask route /upload_image
-            xhr.onload = function () {
-    if (xhr.status === 200) {
-        var response = JSON.parse(xhr.responseText);
-        data.message = response.image_url;
-        data.is_image = true;
-
-        // Emit the image message via Socket.IO
+        xhr.send(formData);
+    } else {
+        // Emit text message via Socket.IO
         socket.emit('send_message', data);
 
-        // Display the image in the chat for the sender instantly
-        addMessage(userType, response.image_url, true, Date.now(), true, response.image_url);
+        // Only append the text message for the sender locally
+        addMessage(userType, message, true, Date.now(), false);
     }
-};
 
-            xhr.send(formData);
-        } else {
-            // Emit text message via Socket.IO
-            socket.emit('send_message', data);
+    // Clear the input fields
+    messageInput.value = "";
+    imageInput.value = null;
+}
 
-            // Append the text message instantly for the sender
-            addMessage(userType, message, true, Date.now(), false);        }
-
-       // Handle messages from the server
-    socket.on('send_message', function(data) {
+// Receiving message from server (adjustment here)
+// Receiving message from server
+socket.on('receive_message', function(data) {
+    // Prevent displaying duplicate message for the sender
+    if (data.sender !== userType) {  // Check if the sender is not the current user
         if (data.is_image) {
-            // Display the image in the chat
-            addMessage(data.sender, data.message, data.is_sender, Date.now(), true, data.image_url);
+            addMessage(data.sender, null, false, Date.now(), true, data.image_url);  // Image message for the receiver
         } else {
-            // Display the text message
-            addMessage(data.sender, data.message, data.is_sender, Date.now(), false);
+            addMessage(data.sender, data.message, false, Date.now(), false);  // Text message for the receiver
         }
-    });
-
-
-
-        // Clear the input fields
-        messageInput.value = "";
-        imageInput.value = null;
     }
-</script>
+});
 
 
+    </script>
 </body>
 </html>
