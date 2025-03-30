@@ -79,6 +79,30 @@
             border-radius: 5px;
             cursor: pointer;
         }
+        .chat-message img {
+        max-width: 200px;
+        border-radius: 10px;
+        display: block;
+        margin-top: 5px;
+    }
+
+    /* Ensure the message container is cleared properly */
+    .chat-message.sender img {
+        float: right;
+        margin-left: auto;  /* Pushes the image to the right */
+    }
+
+    .chat-message.receiver img {
+        float: left;
+        margin-right: auto;  /* Pushes the image to the left */
+    }
+
+    /* Clear floats after each message */
+    .chat-message::after {
+        content: "";
+        display: table;
+        clear: both;
+    }
     </style>
 </head>
 <body>
@@ -106,26 +130,50 @@
 
         // Function to append new messages
         function addMessage(sender, message, is_sender, messageId, isImage = false, image_url = null) {
-            if (messageId && receivedMessages.has(messageId)) return;
-            if (messageId) receivedMessages.add(messageId);
+    if (messageId && receivedMessages.has(messageId)) return;
+    if (messageId) receivedMessages.add(messageId);
 
-            var messageDiv = document.createElement("div");
-            messageDiv.classList.add("chat-message");
-            messageDiv.classList.add(is_sender ? "sender" : "receiver");
+    var messageDiv = document.createElement("div");
+    messageDiv.classList.add("chat-message");
 
-            if (isImage && image_url) {
-                var img = document.createElement("img");
-                img.src = image_url;
-                img.style.maxWidth = "200px";
-                img.alt = "Image message";
-                messageDiv.appendChild(img);
-            } else {
-                messageDiv.textContent = message;
-            }
+    // Add the label to indicate whether it's 'You' or 'Them'
+    var label = document.createElement("div");
+    if (is_sender) { // For sender messages
+        messageDiv.classList.add("sender");
+    } else { // For received messages
+        messageDiv.classList.add("receiver");
+    }
+    messageDiv.appendChild(label);  // Add the label above the message or image
 
-            chatBox.appendChild(messageDiv);
-            chatBox.scrollTop = chatBox.scrollHeight;  // Scroll to the bottom
+    // Handle image or text messages
+    if (isImage && image_url) {
+        var img = document.createElement("img");
+        img.src = image_url;
+        img.style.maxWidth = "200px";
+        img.alt = "Image message";
+
+        // Enforce the float style with !important and proper margin
+        if (is_sender) {
+            img.style.float = "right";  // Float to the right for the sender
+            img.style.marginLeft = "10px";  // Add margin to avoid overlap
+            img.style.clear = "both";  // Clear float
+        } else {
+            img.style.float = "left";  // Float to the left for the receiver
+            img.style.marginRight = "10px";  // Add margin to avoid overlap
+            img.style.clear = "both";  // Clear float
         }
+
+        messageDiv.appendChild(img);
+    } else {
+        var messageText = document.createElement("div");
+        messageText.textContent = message;  // Add text message if no image
+        messageDiv.appendChild(messageText);
+    }
+
+    chatBox.appendChild(messageDiv);
+    chatBox.scrollTop = chatBox.scrollHeight;  // Scroll to the bottom
+}
+
 
         // Load chat history once
         var chatMessages = JSON.parse('{{ chat_messages | tojson | safe }}');
@@ -140,14 +188,16 @@ socket.emit('join_room', roomId);
 // Listen for real-time messages
 socket.on('receive_message', function(data) {
     if (data.is_image) {
-        addMessage(data.sender, null, data.is_sender, Date.now(), true, data.message);  // Image message
+        addMessage(data.sender, null, false, Date.now(), true, data.image_url);  // Image message
     } else {
         addMessage(data.sender, data.message, data.is_sender, Date.now(), false);  // Text message
     }
 });
 
-        // Send a message
-// Function to send messages (adjustment here)
+
+
+
+
 function sendMessage() {
     var messageInput = document.getElementById("chat-message");
     var imageInput = document.getElementById("image-input");
@@ -175,13 +225,13 @@ function sendMessage() {
         xhr.onload = function () {
             if (xhr.status === 200) {
                 var response = JSON.parse(xhr.responseText);
-                data.message = response.image_url;
+                data.image_url = response.image_url;
                 data.is_image = true;
 
-                // Only append the message for the sender locally, not via the socket response
-                addMessage(userType, response.image_url, true, Date.now(), true, response.image_url);
+                // Locally add the image message for the sender (this won't be duplicated)
+                addMessage(userType, null, true, Date.now(), true, response.image_url);
 
-                // Emit the image message via Socket.IO, but don't append it on receive for the sender
+                // Emit the image message via Socket.IO, but don't expect the server to resend it to the sender
                 socket.emit('send_message', data);
             }
         };
@@ -191,7 +241,7 @@ function sendMessage() {
         // Emit text message via Socket.IO
         socket.emit('send_message', data);
 
-        // Only append the text message for the sender locally
+        // Locally add the text message for the sender
         addMessage(userType, message, true, Date.now(), false);
     }
 
@@ -200,18 +250,9 @@ function sendMessage() {
     imageInput.value = null;
 }
 
+
 // Receiving message from server (adjustment here)
 // Receiving message from server
-socket.on('receive_message', function(data) {
-    // Prevent displaying duplicate message for the sender
-    if (data.sender !== userType) {  // Check if the sender is not the current user
-        if (data.is_image) {
-            addMessage(data.sender, null, false, Date.now(), true, data.image_url);  // Image message for the receiver
-        } else {
-            addMessage(data.sender, data.message, false, Date.now(), false);  // Text message for the receiver
-        }
-    }
-});
 
 
     </script>
