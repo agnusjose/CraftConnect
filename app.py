@@ -1072,6 +1072,8 @@ from flask import request, jsonify
 
 UPLOAD_FOLDER = os.path.join('static', 'uploads')
   # Update this to the actual path where you store images
+from datetime import datetime
+
 @app.route('/upload_image', methods=['POST'])
 def upload_image():
     # Get the image file and message data from the request
@@ -1083,7 +1085,17 @@ def upload_image():
     customer_id = message_data.get('customer_id')
     manufacturer_id = message_data.get('manufacturer_id')
     sender = message_data.get('sender')
-    
+
+    # Determine sender_type and receiver_type
+    if sender == 'customer':
+        sender_type = 'customer'
+        receiver_type = 'manufacturer'
+        customer_id = session['user_id']  # Ensure correct customer ID
+    elif sender == 'manufacturer':
+        sender_type = 'manufacturer'
+        receiver_type = 'customer'
+        manufacturer_id = session['user_id']  # Ensure correct manufacturer ID
+
     # Save the image to your upload folder
     image_filename = image.filename
     image_path = os.path.join(app.config["UPLOAD_FOLDER"], image_filename)
@@ -1092,17 +1104,21 @@ def upload_image():
     # Construct the URL for the image
     image_url = f"/static/uploads/{image_filename}"
 
+    # Get the current timestamp
+    timestamp = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+
     # Save the image message to the database
-    conn = get_db_connection()  # Make sure you have a function that returns a DB connection
+    conn = get_db_connection()  # Function to return a DB connection
     cursor = conn.cursor()
     
-    # Insert the message into the chat_messages table, setting is_image to 1 and saving image_url
+    # Insert message into chat_messages table, including sender_type, receiver_type, and timestamp
     cursor.execute("""
-        INSERT INTO chat_messages (customer_id, manufacturer_id, message, is_image, image_url) 
-        VALUES (?, ?, ?, ?, ?)
-    """, (customer_id, manufacturer_id, None, 1, image_url))  # message is None for images, image_url is set
+        INSERT INTO chat_messages (customer_id, manufacturer_id, message, is_image, image_url, sender_type, timestamp, receiver_type) 
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+    """, (customer_id, manufacturer_id, None, 1, image_url, sender_type, timestamp, receiver_type))  # message is None for images
 
     conn.commit()
+    conn.close()
 
     # Emit the image message via Socket.IO for real-time communication
     room_id = f"{manufacturer_id}_{customer_id}"  # Use the same format as in your JavaScript for room ID
@@ -1113,14 +1129,15 @@ def upload_image():
         "customer_id": customer_id,
         "manufacturer_id": manufacturer_id,
         "sender": sender,
-        "is_image": True  # Flag this as an image message
+        "is_image": True,  # Flag this as an image message
+        "sender_type": sender_type,
+        "timestamp": timestamp,
+        "receiver_type": receiver_type
     }
 
     socketio.emit('receive_message', data, room=room_id)  # Send to the correct room
 
     return jsonify({"image_url": image_url})  # Respond with the image URL
-
-
 
 
 
