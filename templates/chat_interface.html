@@ -122,7 +122,7 @@
         var socket = io();
         var chatBox = document.getElementById("chat-box");
         var roomId = "{{ manufacturer_id }}_{{ customer_id }}";
-        var userType = "{{ user_type }}";  // "manufacturer" or "customer" from the backend
+        var userType = "{{ session.get('user_type', '') }}";  
         var receivedMessages = new Set();  // To prevent duplicate messages
 
         // Join the room
@@ -195,7 +195,7 @@ function addMessage(sender, message, is_sender, messageId, isImage = false, imag
         socket.on('receive_message', function(data) {
             if (data.is_image) {
             
-                addMessage(data.sender, null, false, Date.now(), true, data.image_url);  // Image message
+                    return;  // Ignore messages sent by the user themselves
 
             } else {
                 addMessage(data.sender, data.message, data.is_sender, Date.now(), false);  // Text message
