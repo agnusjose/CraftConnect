@@ -9,6 +9,7 @@ from werkzeug.security import generate_password_hash, check_password_hash
 from flask_socketio import SocketIO, emit, join_room, leave_room
 import json
 import base64
+from datetime import datetime
 
 
 # Store active chat rooms
@@ -243,6 +244,7 @@ def login():
                     
                     flash("Login successful!", "success")
                     print("Login successful!")
+                    print(f"✅ [DEBUG] Session after login: {session}") 
 
                     # Redirect based on user type (customer or manufacturer)
                     if user[4] == "manufacturer":
@@ -975,11 +977,130 @@ def view_customer_chat(manufacturer_id, customer_id):
                            manufacturer_id=manufacturer_id)
 
 
+from datetime import datetime
+
+
+UPLOAD_FOLDER = os.path.join(os.getcwd(), 'static', 'uploads')
+app.config["UPLOAD_FOLDER"] = UPLOAD_FOLDER  
+
+# ✅ Socket.IO: Join Room
+@socketio.on('join_room')
+def handle_join_room(room_id):
+    join_room(room_id)
+    print(f"[INFO] User joined room: {room_id}")
+
+# ✅ Socket.IO: Handle Text Messages
+@socketio.on('send_message')
+def handle_send_message(data):
+
+    
+    sender_id = session.get("user_id")
+    sender = session.get("user_type")  # Get sender dynamically
+    message = data.get('message')
+    manufacturer_id = data.get('manufacturer_id')
+    customer_id = data.get('customer_id')
+    is_image = data.get('is_image', False)
+
+    print(f"🔍 [DEBUG] Sender ID: {sender_id}, Sender Type: {sender}") # Check what session has
+
+    # Ensure sender is valid
+    if sender not in ["customer", "manufacturer"]:
+        print("[ERROR] Invalid sender:", sender)
+        return
+
+    # Determine receiver dynamically
+    receiver_type = "manufacturer" if sender == "customer" else "customer"
+    
+    print(f"✅ Sender: {sender}, Receiver: {receiver_type}")  # Debug print
+
+    timestamp = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+
+    try:
+        conn = get_db_connection()
+        cursor = conn.cursor()
+
+        cursor.execute("""
+            INSERT INTO chat_messages (customer_id, manufacturer_id, message, is_image, image_url, sender_type, timestamp, reciever_type) 
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+        """, (customer_id, manufacturer_id, message, is_image, None, sender, timestamp, receiver_type))
+
+        conn.commit()
+        conn.close()
+
+        print("[SUCCESS] Message inserted successfully!")
+
+        room_id = f"{manufacturer_id}_{customer_id}"
+        emit('receive_message', {
+            'message': message,
+            'sender': sender,
+            'is_image': False,
+            'image_url': None
+        }, room=room_id, include_self=False)
+
+    except Exception as e:
+        print(f"[ERROR] Failed to insert message: {e}")
+
+
+
+# ✅ Image Upload Route
+@app.route('/upload_image', methods=['POST'])
+def upload_image():
+    try:
+        image = request.files.get('image')
+        message_data = json.loads(request.form.get('message_data', '{}'))  
+
+        customer_id = message_data.get('customer_id')
+        manufacturer_id = message_data.get('manufacturer_id')
+        sender = session.get("user_type")  # Get sender dynamically
+
+        if sender not in ["customer", "manufacturer"]:
+            return jsonify({"error": "Invalid sender"}), 400  
+
+        receiver_type = "manufacturer" if sender == "customer" else "customer"
+
+        if not image:
+            return jsonify({"error": "No image file provided"}), 400  
+
+        image_filename = image.filename
+        image_path = os.path.join(app.config["UPLOAD_FOLDER"], image_filename)
+        image.save(image_path)
+
+        image_url = f"/static/uploads/{image_filename}"
+        timestamp = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+
+        conn = get_db_connection()
+        cursor = conn.cursor()
+        
+        cursor.execute("""
+            INSERT INTO chat_messages (customer_id, manufacturer_id, message, is_image, image_url, sender_type, timestamp, reciever_type) 
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+        """, (customer_id, manufacturer_id, None, 1, image_url, sender, timestamp, receiver_type))
+
+        conn.commit()
+        conn.close()
+
+        room_id = f"{manufacturer_id}_{customer_id}"
+        socketio.emit('receive_message', {
+            "message": None,
+            "image_url": image_url,
+            "customer_id": customer_id,
+            "manufacturer_id": manufacturer_id,
+            "sender": sender,
+            "is_image": True
+        }, room=room_id)
+
+        return jsonify({"image_url": image_url})
+
+    except Exception as e:
+        print(f"[ERROR] Failed to insert image message: {e}")
+        return jsonify({"error": str(e)}), 500
+
+# ✅ Fetch Chat Messages
 @app.route("/get_messages", methods=["GET"])
 def get_messages():
     customer_id = request.args.get("customer_id")
     manufacturer_id = request.args.get("manufacturer_id")
-    current_user_type = session.get('user_type')  # "customer" or "manufacturer"
+    current_user_type = session.get('user_type')  
 
     conn = get_db_connection()
     cursor = conn.cursor()
@@ -987,167 +1108,24 @@ def get_messages():
         SELECT id, message, is_image, image_url, sender_type AS sender_role, timestamp
         FROM chat_messages 
         WHERE (customer_id=? AND manufacturer_id=?)
-           OR (customer_id=? AND manufacturer_id=?)
         ORDER BY timestamp ASC
-    ''', (customer_id, manufacturer_id, manufacturer_id, customer_id))
+    ''', (customer_id, manufacturer_id))
 
     messages = []
     for msg in cursor.fetchall():
-        msg_dict = {
+        messages.append({
             'id': msg[0],
             'message': msg[1],
             'is_image': msg[2],
             'image_url': msg[3],
-            'sender_role': msg[4],  # either 'customer' or 'manufacturer'
-            'timestamp': msg[5]
-        }
-        # Add is_sender flag (True if sender matches logged-in user)
-        msg_dict['is_sender'] = (msg_dict['sender_role'] == current_user_type)
-        messages.append(msg_dict)
+            'sender_role': msg[4],
+            'timestamp': msg[5],
+            'is_sender': (msg[4] == current_user_type)
+        })
 
     conn.close()
     return jsonify(messages)
 
-
-
-
-from datetime import datetime
-
-@socketio.on('send_message')
-def handle_send_message(data):
-    is_image = data.get('is_image', False)
-
-    # If this is an image message, it has already been inserted by the /upload_image route
-    if is_image:
-        return  # Skip further processing since the image message is already handled
-
-    # Extract message details
-    message = data.get('message')
-    sender = data['sender']  # 'customer' or 'manufacturer'
-    manufacturer_id = data['manufacturer_id']
-    customer_id = data['customer_id']
-
-    # Determine sender_type and receiver_type
-    if sender == 'customer':
-        sender_type = 'customer'
-        receiver_type = 'manufacturer'
-        customer_id = session['user_id']  # Ensure the correct customer ID
-    elif sender == 'manufacturer':
-        sender_type = 'manufacturer'
-        receiver_type = 'customer'
-        manufacturer_id = session['user_id']  # Ensure the correct manufacturer ID
-
-    # Get the current timestamp
-    timestamp = datetime.now().strftime('%Y-%m-%d %H:%M:%S')  # Format as a standard timestamp
-
-    # Connect to the database
-    conn = get_db_connection()
-    cursor = conn.cursor()
-
-    # Insert message into the database
-    cursor.execute("""
-        INSERT INTO chat_messages (customer_id, manufacturer_id, message, is_image, image_url, sender_type, timestamp, receiver_type) 
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-    """, (customer_id, manufacturer_id, message, 0, None, sender_type, timestamp, receiver_type))  # No image_url for text messages
-
-    conn.commit()
-    conn.close()
-
-    # Emit the text message to the room
-    room_id = f"{manufacturer_id}_{customer_id}"
-    emit('receive_message', {
-        'message': message,
-        'sender': sender,
-        'is_image': False,
-        'image_url': None,
-        'sender_type': sender_type,
-        'timestamp': timestamp,
-        'receiver_type': receiver_type
-    }, room=room_id, include_self=False)
-
-
-
-import os
-from flask import request, jsonify
-
-UPLOAD_FOLDER = os.path.join('static', 'uploads')
-  # Update this to the actual path where you store images
-from datetime import datetime
-
-@app.route('/upload_image', methods=['POST'])
-def upload_image():
-    # Get the image file and message data from the request
-    image = request.files['image']
-    message_data = request.form.get('message_data')
-    message_data = json.loads(message_data)  # Convert the JSON string back to a dictionary
-
-    # Extract customer and manufacturer IDs, and other message details
-    customer_id = message_data.get('customer_id')
-    manufacturer_id = message_data.get('manufacturer_id')
-    sender = message_data.get('sender')
-
-    # Determine sender_type and receiver_type
-    if sender == 'customer':
-        sender_type = 'customer'
-        receiver_type = 'manufacturer'
-        customer_id = session['user_id']  # Ensure correct customer ID
-    elif sender == 'manufacturer':
-        sender_type = 'manufacturer'
-        receiver_type = 'customer'
-        manufacturer_id = session['user_id']  # Ensure correct manufacturer ID
-
-    # Save the image to your upload folder
-    image_filename = image.filename
-    image_path = os.path.join(app.config["UPLOAD_FOLDER"], image_filename)
-    image.save(image_path)
-
-    # Construct the URL for the image
-    image_url = f"/static/uploads/{image_filename}"
-
-    # Get the current timestamp
-    timestamp = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
-
-    # Save the image message to the database
-    conn = get_db_connection()  # Function to return a DB connection
-    cursor = conn.cursor()
-    
-    # Insert message into chat_messages table, including sender_type, receiver_type, and timestamp
-    cursor.execute("""
-        INSERT INTO chat_messages (customer_id, manufacturer_id, message, is_image, image_url, sender_type, timestamp, receiver_type) 
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-    """, (customer_id, manufacturer_id, None, 1, image_url, sender_type, timestamp, receiver_type))  # message is None for images
-
-    conn.commit()
-    conn.close()
-
-    # Emit the image message via Socket.IO for real-time communication
-    room_id = f"{manufacturer_id}_{customer_id}"  # Use the same format as in your JavaScript for room ID
-
-    data = {
-        "message": image_url,  # Send the image_url as the message for easier handling
-        "image_url": image_url,  # Also keep the image_url explicitly
-        "customer_id": customer_id,
-        "manufacturer_id": manufacturer_id,
-        "sender": sender,
-        "is_image": True,  # Flag this as an image message
-        "sender_type": sender_type,
-        "timestamp": timestamp,
-        "receiver_type": receiver_type
-    }
-
-    socketio.emit('receive_message', data, room=room_id)  # Send to the correct room
-
-    return jsonify({"image_url": image_url})  # Respond with the image URL
-
-
-
-
-@socketio.on('join_room')
-def on_join(data):
-    room_id = data  # The room_id sent from the client
-    join_room(room_id)
-    print(f"User joined room: {room_id}")
-
-
 if __name__ == '__main__':
     socketio.run(app, debug=True)
+
