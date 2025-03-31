@@ -1,3 +1,4 @@
+
 from flask import Flask, render_template, request, redirect, url_for, flash, session, jsonify
 from flask_mail import Mail, Message
 
@@ -974,7 +975,6 @@ def view_customer_chat(manufacturer_id, customer_id):
                            manufacturer_id=manufacturer_id)
 
 
-# Fetch chat messages via API (unchanged)
 @app.route("/get_messages", methods=["GET"])
 def get_messages():
     customer_id = request.args.get("customer_id")
@@ -984,11 +984,7 @@ def get_messages():
     conn = get_db_connection()
     cursor = conn.cursor()
     cursor.execute('''
-        SELECT *,
-               CASE 
-                   WHEN customer_id IS NOT NULL THEN 'customer' 
-                   ELSE 'manufacturer' 
-               END AS sender_role
+        SELECT id, message, is_image, image_url, sender_type AS sender_role, timestamp
         FROM chat_messages 
         WHERE (customer_id=? AND manufacturer_id=?)
            OR (customer_id=? AND manufacturer_id=?)
@@ -997,7 +993,14 @@ def get_messages():
 
     messages = []
     for msg in cursor.fetchall():
-        msg_dict = dict(msg)
+        msg_dict = {
+            'id': msg[0],
+            'message': msg[1],
+            'is_image': msg[2],
+            'image_url': msg[3],
+            'sender_role': msg[4],  # either 'customer' or 'manufacturer'
+            'timestamp': msg[5]
+        }
         # Add is_sender flag (True if sender matches logged-in user)
         msg_dict['is_sender'] = (msg_dict['sender_role'] == current_user_type)
         messages.append(msg_dict)
@@ -1005,36 +1008,64 @@ def get_messages():
     conn.close()
     return jsonify(messages)
 
+
+
+
+from datetime import datetime
+
 @socketio.on('send_message')
 def handle_send_message(data):
-    # Check if the message is an image
     is_image = data.get('is_image', False)
-    message = data['message'] if not is_image else data['image_url']  # Store URL for image
-    sender = data['sender']
+
+    # If this is an image message, it has already been inserted by the /upload_image route
+    if is_image:
+        return  # Skip further processing since the image message is already handled
+
+    # Extract message details
+    message = data.get('message')
+    sender = data['sender']  # 'customer' or 'manufacturer'
     manufacturer_id = data['manufacturer_id']
     customer_id = data['customer_id']
 
-    # Determine whether the sender is the customer or manufacturer
+    # Determine sender_type and receiver_type
     if sender == 'customer':
-        customer_id = session['user_id']
+        sender_type = 'customer'
+        receiver_type = 'manufacturer'
+        customer_id = session['user_id']  # Ensure the correct customer ID
     elif sender == 'manufacturer':
-        manufacturer_id = session['user_id']
+        sender_type = 'manufacturer'
+        receiver_type = 'customer'
+        manufacturer_id = session['user_id']  # Ensure the correct manufacturer ID
 
-    # Save the message or image URL in the database
+    # Get the current timestamp
+    timestamp = datetime.now().strftime('%Y-%m-%d %H:%M:%S')  # Format as a standard timestamp
+
+    # Connect to the database
     conn = get_db_connection()
     cursor = conn.cursor()
 
+    # Insert message into the database
     cursor.execute("""
-        INSERT INTO chat_messages (customer_id, manufacturer_id, message, is_image) 
-        VALUES (?, ?, ?, ?)
-    """, (customer_id, manufacturer_id, message, int(is_image)))  # is_image is 1 for image, 0 for text
+        INSERT INTO chat_messages (customer_id, manufacturer_id, message, is_image, image_url, sender_type, timestamp, receiver_type) 
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+    """, (customer_id, manufacturer_id, message, 0, None, sender_type, timestamp, receiver_type))  # No image_url for text messages
 
     conn.commit()
     conn.close()
 
-    # Emit the message or image URL in real-time to the room
+    # Emit the text message to the room
     room_id = f"{manufacturer_id}_{customer_id}"
-    emit('receive_message', {'message': message, 'sender': sender, 'is_image': is_image}, room=room_id, include_self=False)
+    emit('receive_message', {
+        'message': message,
+        'sender': sender,
+        'is_image': False,
+        'image_url': None,
+        'sender_type': sender_type,
+        'timestamp': timestamp,
+        'receiver_type': receiver_type
+    }, room=room_id, include_self=False)
+
+
 
 import os
 from flask import request, jsonify
