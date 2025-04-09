@@ -1,0 +1,185 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Admin - User Details</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/styles.css') }}">
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background-color: #f8f9fa;
+            margin: 0;
+            padding: 0;
+        }
+        .navbar {
+            width: 100%;
+            background-color: #4a0c1c;
+            padding: 15px;
+            color: white;
+            font-size: 20px;
+            font-weight: bold;
+            text-align: center;
+        }
+        .container {
+            max-width: 1000px;
+            margin: 20px auto;
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 2px 2px 10px rgba(0, 0, 0, 0.1);
+        }
+        h1 {
+            text-align: center;
+            color: #4a0c1c;
+            margin-bottom: 20px;
+        }
+        .user-info {
+            text-align: center;
+            margin-bottom: 20px;
+        }
+        .user-info img {
+            width: 80px;
+            height: 80px;
+            border-radius: 50%;
+            object-fit: cover;
+            margin-bottom: 10px;
+        }
+        .scroll-container {
+            display: flex;
+            overflow-x: auto;
+            padding: 10px;
+            gap: 15px;
+        }
+        .item-card {
+            min-width: 200px;
+            background: white;
+            padding: 10px;
+            border-radius: 8px;
+            box-shadow: 2px 2px 10px rgba(0, 0, 0, 0.1);
+            text-align: center;
+            transition: 0.3s;
+        }
+        .item-card:hover {
+            transform: scale(1.05);
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.15);
+        }
+        .item-card img {
+            width: 100%;
+            height: 150px;
+            object-fit: cover;
+            border-radius: 5px;
+        }
+        .item-card p {
+            margin: 5px 0;
+            font-size: 14px;
+            color: #4a0c1c;
+        }
+        .action-btn {
+            background-color: #4a0c1c;
+            color: white;
+            border: none;
+            padding: 8px 12px;
+            text-decoration: none;
+            border-radius: 5px;
+            cursor: pointer;
+            transition: 0.3s;
+            margin-top: 5px;
+            display: inline-block;
+        }
+        .action-btn:hover {
+            background-color: #6a1328;
+        }
+    </style>
+</head>
+<body>
+    <div class="navbar">CRAFTCONNECT - User Details</div>
+
+    <div class="container">
+        <div class="user-info">
+            <img src="{{ url_for('static', filename='uploads/' + user['profile_pic']) }}" alt="Profile Picture">
+            <h2>{{ user['name'] }}</h2>
+            <p>Email: {{ user['email'] }}</p>
+            <p>Phone: {{ user['phone'] if user['phone'] else 'N/A' }}</p>
+            <p>Address: {{ user['address'] if user['address'] else 'N/A' }}</p>
+            {% if user.suspended == 1 %}
+                <p style="color: red; font-weight: bold;">🔴 Suspended</p>
+            {% else %}
+                <p style="color: green; font-weight: bold;">🟢 Active</p>
+            {% endif %}
+        </div>
+
+        {% if user_type == 'customer' %}
+            <h3>Orders</h3>
+            <div class="scroll-container">
+                {% for order in orders %}
+                    <div class="item-card">
+                        <img src="{{ url_for('static', filename='uploads/' + order['image']) }}" alt="Product">
+                        <p>{{ order['product_name'] }}</p>
+                        <p>Ordered from: {{ order['manufacturer_name'] }}</p>
+                        <p>Status: {{ order['status'] }}</p>
+                    </div>
+                {% endfor %}
+            </div>
+
+            <h3>Cart</h3>
+            <div class="scroll-container">
+                {% for item in cart_items %}
+                    <div class="item-card">
+                        <img src="{{ url_for('static', filename='uploads/' + item['image']) }}" alt="Product">
+                        <p>{{ item['name'] }}</p>
+                        <p>From: {{ item['manufacturer_name'] }}</p>
+                        <p>Price: ${{ item['price'] }}</p>
+                    </div>
+                {% endfor %}
+            </div>
+
+            <h3>Reviews</h3>
+            <div class="scroll-container">
+                {% for review in reviews %}
+                    <div class="item-card">
+                        <img src="{{ url_for('static', filename='uploads/' + review['image']) }}" alt="Product">
+                        <p>{{ review['product_name'] }}</p>
+                        <p>Rating: ⭐{{ review['rating'] }}/5</p>
+                        <p>"{{ review['feedback'] }}"</p>
+                    </div>
+                {% endfor %}
+            </div>
+
+        {% elif user_type == 'manufacturer' %}
+            <h3>Approved Products</h3>
+            <div class="scroll-container">
+                {% for product in approved_products %}
+                    <div class="item-card">
+                        <img src="{{ url_for('static', filename='uploads/' + product['image']) }}" alt="Product">
+                        <p>{{ product['name'] }}</p>
+                    </div>
+                {% endfor %}
+            </div>
+
+            <h3>Pending Approval</h3>
+            <div class="scroll-container">
+                {% for product in pending_products %}
+                    <div class="item-card">
+                        <img src="{{ url_for('static', filename='uploads/' + product['image']) }}" alt="Product">
+                        <p>{{ product['name'] }}</p>
+                        <a href="/admin/product/approve/{{ product['id'] }}" class="action-btn">Approve</a>
+                        <a href="/admin/product/reject/{{ product['id'] }}" class="action-btn">Reject</a>
+                    </div>
+                {% endfor %}
+            </div>
+
+            <h3>Rejected Products</h3>
+            <div class="scroll-container">
+                {% for product in rejected_products %}
+                    <div class="item-card">
+                        <img src="{{ url_for('static', filename='uploads/' + product['image']) }}" alt="Product">
+                        <p>{{ product['name'] }}</p>
+                        <a href="/admin/product/approve/{{ product['id'] }}" class="action-btn">Approve</a>
+                    </div>
+                {% endfor %}
+            </div>
+        {% endif %}
+    </div>
+</body>
+</html>

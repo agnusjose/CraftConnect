@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Product Details</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/styles.css') }}">
+</head>
+<body>
+    <div class="navbar">Product Details</div>
+
+    <div class="container">
+        <h2>{{ product.name }}</h2>
+        <img src="{{ url_for('static', filename='uploads/' + product.image) }}" alt="Product Image" style="width: 300px; height: auto; margin-top: 10px;">
+        <p><strong>Category:</strong> {{ product.category }}</p>
+        <p><strong>Price:</strong> ${{ product.price }}</p>
+        <p><strong>Manufacturer:</strong> {{ product.manufacturer_name }} ({{ product.manufacturer_email }})</p>
+        <p><strong>Description:</strong> {{ product.description }}</p>
+        <p><strong>Approval Status:</strong> 
+            {% if product.approved == 1 %}
+                ✅ Approved
+            {% elif product.approved == 0 %}
+                ⏳ Pending
+            {% else %}
+                ❌ Rejected
+            {% endif %}
+        </p>
+
+        <h3>Customer Reviews</h3>
+        {% if reviews %}
+            <ul>
+                {% for review in reviews %}
+                    <li><strong>{{ review.reviewer_name }}</strong>: ⭐{{ review.rating }}/5 - "{{ review.feedback }}"</li>
+                {% endfor %}
+            </ul>
+        {% else %}
+            <p>No reviews yet.</p>
+        {% endif %}
+    </div>
+</body>
+</html>

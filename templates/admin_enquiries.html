@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Admin Enquiries</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/admin_enquiries.css') }}">
+</head>
+<body>
+    <nav class="navbar">CRAFTCONNECT</nav>
+    
+    <div class="container">
+        <h2>Admin Enquiries</h2>
+        
+        {% for enquiry in enquiries %}
+        <div class="enquiry-card">
+            <div class="enquiry-details">
+                <p><strong>Name:</strong> {{ enquiry[1] }}</p>
+                <p><strong>Email:</strong> {{ enquiry[2] }}</p>
+                <p><strong>Message:</strong> {{ enquiry[3] }}</p>
+                <p><strong>Reply:</strong> 
+                    {% if enquiry[4] %}
+                        <span class="replied">{{ enquiry[4] }}</span>
+                    {% else %}
+                        <span class="no-reply">No reply yet</span>
+                    {% endif %}
+                </p>
+            </div>
+            <form action="{{ url_for('reply_enquiry', enquiry_id=enquiry[0]) }}" method="POST">
+                <input type="text" name="reply_message" placeholder="Type reply..." required>
+                <button type="submit">Send Reply</button>
+            </form>
+        </div>
+        {% endfor %}
+    </div>
+</body>
+</html>

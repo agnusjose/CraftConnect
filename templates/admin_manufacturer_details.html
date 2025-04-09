@@ -1,0 +1,96 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Manufacturer Details - Admin Panel</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='admin_styles.css') }}">
+
+</head>
+<body>
+    <h1>Manufacturer Details</h1>
+    
+    <div class="manufacturer-info">
+        <h2>{{ user['username'] }}</h2>
+        <p>Email: {{ user['email'] }}</p>
+        <p>Contact: {{ user['contact'] }}</p>
+    </div>
+
+    <hr>
+
+    <h2>Approved Products</h2>
+    {% if approved_products %}
+        <ul>
+            {% for product in approved_products %}
+                <li>
+                    <img src="{{ url_for('static', filename='uploads/' + product['image']) }}" alt="{{ product['name'] }}" width="100">
+                    <strong>{{ product['name'] }}</strong> - ${{ product['price'] }}
+                </li>
+            {% endfor %}
+        </ul>
+    {% else %}
+        <p>No approved products.</p>
+    {% endif %}
+
+    <hr>
+
+    <h2>Pending Products</h2>
+    {% if pending_products %}
+        <ul>
+            {% for product in pending_products %}
+                <li>
+                    <img src="{{ url_for('static', filename='uploads/' + product['image']) }}" alt="{{ product['name'] }}" width="100">
+                    <strong>{{ product['name'] }}</strong> - Pending Approval
+                    <form action="{{ url_for('admin_approve_product', product_id=product['id']) }}" method="post">
+                        <button type="submit">Approve</button>
+                    </form>
+                    <form action="{{ url_for('admin_reject_product', product_id=product['id']) }}" method="post">
+                        <button type="submit">Reject</button>
+                    </form>
+                </li>
+            {% endfor %}
+        </ul>
+    {% else %}
+        <p>No pending products.</p>
+    {% endif %}
+
+    <hr>
+
+    <h2>Rejected Products</h2>
+    {% if rejected_products %}
+        <ul>
+            {% for product in rejected_products %}
+                <li>
+                    <img src="{{ url_for('static', filename='uploads/' + product['image']) }}" alt="{{ product['name'] }}" width="100">
+                    <strong>{{ product['name'] }}</strong> - Rejected
+                </li>
+            {% endfor %}
+        </ul>
+    {% else %}
+        <p>No rejected products.</p>
+    {% endif %}
+
+    <hr>
+
+    <h2>Received Orders</h2>
+    {% if received_orders %}
+        <ul>
+            {% for order in received_orders %}
+                <li>
+                    <strong>Customer:</strong> {{ order['username'] }} |
+                    <strong>Product:</strong> {{ order['product_id'] }} |
+                    <strong>Total:</strong> ${{ order['total_price'] }} |
+                    <strong>Status:</strong> {{ order['status'] }}
+                </li>
+            {% endfor %}
+        </ul>
+    {% else %}
+        <p>No received orders.</p>
+    {% endif %}
+
+    <hr>
+
+    <a href="{{ url_for('admin_dashboard') }}">Back to Admin Panel</a>
+</body>
+</html>

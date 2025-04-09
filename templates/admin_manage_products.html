@@ -1,0 +1,122 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Admin - Manage Products</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/styles.css') }}">
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background-color: #f0f4f8;
+            margin: 0;
+            padding: 0;
+        }
+        .navbar {
+            width: 100%;
+            background-color: #4a0c1c;
+            color: white;
+            padding: 15px;
+            text-align: left;
+            font-size: 24px;
+            font-weight: bold;
+        }
+        .container {
+            width: 90%;
+            max-width: 1200px;
+            margin: 40px auto;
+        }
+        .tabs {
+            display: flex;
+            gap: 15px;
+            margin-bottom: 20px;
+        }
+        .tab {
+            background: #4a0c1c;
+            color: white;
+            padding: 10px 20px;
+            border-radius: 8px;
+            text-decoration: none;
+            font-size: 16px;
+            font-weight: bold;
+        }
+        .tab.active {
+            background: #701026;
+        }
+        .product-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 20px;
+        }
+        .product-card {
+            background: white;
+            padding: 15px;
+            border-radius: 10px;
+            box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
+            text-align: center;
+        }
+        .product-card img {
+            width: 100%;
+            height: 180px;
+            object-fit: cover;
+            border-radius: 8px;
+        }
+        .cancel-btn {
+            background: #d9534f;
+            color: white;
+            padding: 8px 15px;
+            border: none;
+            border-radius: 5px;
+            font-size: 14px;
+            cursor: pointer;
+            margin-top: 10px;
+            display: block;
+            width: 100%;
+            text-align: center;
+        }
+        .cancel-btn:hover {
+            background: #c9302c;
+        }
+    </style>
+</head>
+<body>
+
+    <nav class="navbar">CRAFTCONNECT - Admin</nav>
+
+    <div class="container">
+        <h2>Manage Products</h2>
+
+        <!-- Tabs -->
+        <div class="tabs">
+            <a href="{{ url_for('admin_manage_products') }}" class="tab {% if not rejected %}active{% endif %}">Approved Products</a>
+            <a href="{{ url_for('admin_rejected_products') }}" class="tab {% if rejected %}active{% endif %}">Rejected Products</a>
+        </div>
+
+        <!-- Product Grid -->
+<div class="product-grid">
+    {% if products %}
+        {% for product in products %}
+        <div class="product-card">
+            <a href="{{ url_for('admin_product_details', product_id=product['id']) }}" style="text-decoration: none; color: inherit;">
+                <img src="{{ url_for('static', filename='uploads/' + product['image']) }}" alt="{{ product['name'] }}">
+                <h3>{{ product['name'] }}</h3>
+                <p><strong>Category:</strong> {{ product['category'] }}</p>
+                <p><strong>Price:</strong> ${{ product['price'] }}</p>
+                <p><strong>Stock:</strong> {{ product['stock_limit'] if product['stock_limit'] else 'Unlimited' }}</p>
+            </a>
+
+            {% if rejected %}
+            <form action="{{ url_for('cancel_rejection', product_id=product['id']) }}" method="POST">
+                <button type="submit" class="cancel-btn">Cancel Rejection</button>
+            </form>
+            {% endif %}
+        </div>
+        {% endfor %}
+    {% else %}
+        <p>No products found.</p>
+    {% endif %}
+</div>
+
+
+</body>
+</html>

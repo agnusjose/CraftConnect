@@ -1,0 +1,164 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Manage Products</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/styles.css') }}">
+</head>
+<body>
+
+    <nav class="navbar">
+        <div class="logo">CRAFTCONNECT</div>
+        <ul class="nav-links">
+            <li><a href="{{ url_for('manufacturer_dashboard') }}">Dashboard</a></li>
+            <li><a href="{{ url_for('rejected_products') }}" class="rejected-btn">View Rejected Products</a></li>
+
+            <li><a href="{{ url_for('logout') }}">Logout</a></li>
+        </ul>
+    </nav>
+
+    <section class="product-container">
+        <h2>Manage Your Products</h2>
+        <style>
+             .product-container {
+                text-align: center;
+    padding: 40px;
+    width: 100%;
+    max-width: 100vw; 
+    margin: 0 auto; /* Centers everything */
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+        }
+
+        .product-container h2 {
+            color: #4D0F28;
+    font-size: 24px;
+    font-weight: bold;
+    margin-bottom: 20px;
+    width: 100%;
+    text-align: center;
+    display: block;
+        }
+
+        /* Product Grid */
+        .product-grid {
+            display: flex;
+    flex-wrap: wrap;
+    justify-content: center; /* Ensures grid is centered */
+    gap: 20px;
+    width: 100%;
+    max-width: 1200px;
+    margin: 0 auto;
+        }
+
+        .product-card {
+            background: #fff;
+    color: #4D0F28;
+    padding: 20px;
+    box-shadow: 0px 4px 8px rgba(0, 0, 0, 0.15);
+    text-align: center;
+    border-radius: 8px;
+    transition: transform 0.3s ease, box-shadow 0.3s ease;
+    width: 250px;
+    height: auto;
+        }
+
+        .product-card:hover {
+            transform: scale(1.05);
+            box-shadow: 0px 6px 12px rgba(0, 0, 0, 0.2);
+        }
+
+        .product-card img {
+            width: 100%;
+    height: 200px;
+    object-fit: cover;
+    border-radius: 5px;
+    margin-bottom: 15px;
+        }
+
+        .product-card h3 {
+            font-size: 18px;
+    color: #4D0F28;
+    margin-bottom: 10px;
+    text-decoration: none;
+        }
+        .product-card a h3 {
+    text-decoration: none !important;
+}
+.product-card a {
+    text-decoration: none !important;
+}
+
+
+        .product-card p {
+            font-size: 16px;
+            color: #666;
+            margin-bottom: 10px;
+        }
+
+        .actions {
+            margin-top: 15px;
+        }
+
+        /* Exclude Edit/Delete buttons from .product-card styles */
+        .actions .button {
+            display: inline-block;
+            padding: 10px 15px;
+            font-size: 14px;
+            color: white;
+            background-color: #4D0F28;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            margin: 5px;
+            transition: background-color 0.3s ease;
+        }
+
+        .actions .button:hover {
+            background-color: #4D0F28;
+            color: bisque;
+        }
+        </style>
+
+        {% if products %}
+        <div class="products-grid">
+            {% for product in products %}
+            {% if product['approved'] != -1 %}  <!-- Hide rejected products -->
+            <div class="product-card">
+                <!-- Clickable image and title -->
+                <a href="{{ url_for('view_product', product_id=product['id']) }}">
+                    <img src="{{ url_for('static', filename='uploads/' + product['image']) }}" alt="{{ product['name'] }}">
+                    <h3>{{ product['name'] }}</h3>
+                </a>
+                <p>{{ product['description'] }}</p>
+                <p><strong>Price:</strong> {{ product['price'] }}</p>
+                <p><strong>Category:</strong> {{ product['category'] }}</p>
+                <p><strong>Stock:</strong> 
+                    {% if product['stock_limit'] is not none and product['stock_limit'] > 0 %}
+                         {{ product['stock_limit'] }}
+                    {% elif product['stock_limit'] == 0 %}
+                        Out of Stock
+                    {% else %}
+                        Stock: Unlimited
+                    {% endif %}
+                </p>
+                
+                <div class="actions">
+                    <a href="{{ url_for('edit_product', product_id=product['id']) }}" class="button">Edit</a>
+                    <form action="{{ url_for('delete_product', product_id=product['id']) }}" method="POST" style="display:inline;">
+                        <button type="submit" class="button">Delete</button>
+                    </form>
+                </div>
+            </div>
+            {% endif %}
+            {% endfor %}
+        </div>
+        {% else %}
+            <p>No products found.</p>
+        {% endif %}
+    </section>
+
+</body>
+</html>

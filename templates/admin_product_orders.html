@@ -1,0 +1,13 @@
+{% extends "admin_base.html" %}
+
+{% block content %}
+<h2>Orders for {{ orders[0].product_name if orders else 'this product' }}</h2>
+{% for order in orders %}
+    <div class="order-box">
+        <p><strong>Customer:</strong> {{ order.customer_name }}</p>
+        <p><strong>Status:</strong> {{ order.status }}</p>
+    </div>
+{% else %}
+    <p>No orders placed for this product yet.</p>
+{% endfor %}
+{% endblock %}

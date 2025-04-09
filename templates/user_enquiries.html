@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>My Enquiries</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/styles.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/user_enquiries.css') }}">
+</head>
+<body>
+    <nav class="navbar">CRAFTCONNECT</nav>
+    
+    <div class="container">
+        <h2>My Enquiries</h2>
+        
+        {% for enquiry in enquiries %}
+        <div class="enquiry-card">
+            <div class="enquiry-details">
+                <p><strong>Message:</strong> {{ enquiry[1] }}</p>
+                <p><strong>Admin Reply:</strong> 
+                    {% if enquiry[2] %}
+                        <span class="replied">{{ enquiry[2] }}</span>
+                    {% else %}
+                        <span class="no-reply">No reply yet</span>
+                    {% endif %}
+                </p>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+</body>
+</html>

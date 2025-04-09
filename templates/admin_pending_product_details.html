@@ -1,0 +1,17 @@
+{% extends "admin_base.html" %}
+
+{% block content %}
+<h2>Pending Product Approval</h2>
+<img src="{{ url_for('static', filename='uploads/' + product.image) }}" alt="{{ product.name }}">
+<p><strong>Product:</strong> {{ product.name }}</p>
+<p><strong>Description:</strong> {{ product.description }}</p>
+<p><strong>Category:</strong> {{ product.category }}</p>
+
+<!-- Approve/Reject Options -->
+<form method="POST" action="{{ url_for('admin_approve_product', product_id=product.id) }}">
+    <button type="submit">✅ Approve</button>
+</form>
+<form method="POST" action="{{ url_for('admin_reject_product', product_id=product.id) }}">
+    <button type="submit">❌ Reject</button>
+</form>
+{% endblock %}

@@ -1,0 +1,78 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Customer Details - Admin Panel</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='admin_styles.css') }}">
+
+</head>
+<body>
+    <h1>Customer Details</h1>
+    
+    <div class="customer-info">
+        <h2>{{ user['username'] }}</h2>
+        <p>Email: {{ user['email'] }}</p>
+        <p>Contact: {{ user['contact'] }}</p>
+    </div>
+
+    <hr>
+
+    <h2>Orders Placed</h2>
+    {% if orders %}
+        <ul>
+            {% for order in orders %}
+                <li>
+                    <img src="{{ url_for('static', filename='uploads/' + order['image']) }}" alt="{{ order['product_name'] }}" width="100">
+                    <strong>{{ order['product_name'] }}</strong> - ${{ order['total_price'] }} <br>
+                    <strong>Manufacturer:</strong> {{ order['manufacturer_name'] }} <br>
+                    <strong>Order Date:</strong> {{ order['order_date'] }} <br>
+                    <strong>Status:</strong> {{ order['status'] }}
+                </li>
+            {% endfor %}
+        </ul>
+    {% else %}
+        <p>No orders placed.</p>
+    {% endif %}
+
+    <hr>
+
+    <h2>Cart Contents</h2>
+    {% if cart %}
+        <ul>
+            {% for item in cart %}
+                <li>
+                    <img src="{{ url_for('static', filename='uploads/' + item['image']) }}" alt="{{ item['product_name'] }}" width="100">
+                    <strong>{{ item['product_name'] }}</strong> - ${{ item['price'] }} <br>
+                    <strong>Stock Left:</strong> {{ item['stock'] }}
+                </li>
+            {% endfor %}
+        </ul>
+    {% else %}
+        <p>Cart is empty.</p>
+    {% endif %}
+
+    <hr>
+
+    <h2>Reviews & Ratings</h2>
+    {% if reviews %}
+        <ul>
+            {% for review in reviews %}
+                <li>
+                    <img src="{{ url_for('static', filename='uploads/' + review['image']) }}" alt="{{ review['product_name'] }}" width="100">
+                    <strong>{{ review['product_name'] }}</strong> - Rated {{ review['rating'] }}/5 <br>
+                    <strong>Feedback:</strong> {{ review['feedback'] }}
+                </li>
+            {% endfor %}
+        </ul>
+    {% else %}
+        <p>No reviews or ratings.</p>
+    {% endif %}
+
+    <hr>
+
+    <a href="{{ url_for('admin_dashboard') }}">Back to Admin Panel</a>
+</body>
+</html>

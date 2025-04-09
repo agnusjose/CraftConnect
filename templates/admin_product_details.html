@@ -1,0 +1,118 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Admin - Product Details</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/styles.css') }}">
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background-color: #f0f4f8;
+            margin: 0;
+            padding: 0;
+        }
+        .navbar {
+            width: 100%;
+            background-color: #4a0c1c;
+            color: white;
+            padding: 15px;
+            text-align: left;
+            font-size: 24px;
+            font-weight: bold;
+        }
+        .container {
+            width: 80%;
+            max-width: 900px;
+            margin: 40px auto;
+            background: white;
+            padding: 20px;
+            border-radius: 10px;
+            box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
+        }
+        .product-img {
+            width: 100%;
+            max-height: 300px;
+            object-fit: cover;
+            border-radius: 8px;
+        }
+        .details {
+            margin-top: 20px;
+        }
+        .details p {
+            font-size: 18px;
+            margin: 5px 0;
+        }
+        .btn-container {
+            margin-top: 20px;
+            display: flex;
+            gap: 15px;
+        }
+        .cancel-btn {
+            background: #d9534f;
+            color: white;
+            padding: 10px 15px;
+            border: none;
+            border-radius: 5px;
+            font-size: 16px;
+            cursor: pointer;
+            flex: 1;
+            text-align: center;
+            text-decoration: none;
+        }
+        .cancel-btn:hover {
+            background: #c9302c;
+        }
+        .back-btn {
+            background: #4a0c1c;
+            color: white;
+            padding: 10px 15px;
+            border: none;
+            border-radius: 5px;
+            font-size: 16px;
+            cursor: pointer;
+            flex: 1;
+            text-align: center;
+            text-decoration: none;
+        }
+        .back-btn:hover {
+            background: #701026;
+        }
+    </style>
+</head>
+<body>
+
+    <nav class="navbar">CRAFTCONNECT - Admin</nav>
+
+    <div class="container">
+        {% if product %}
+            <img src="{{ url_for('static', filename='uploads/' + product['image']) if product['image'] else url_for('static', filename='images/default-product.png') }}" 
+                 class="product-img" 
+                 alt="{{ product['name'] }}">
+
+            <div class="details">
+                <h2>{{ product['name'] }}</h2>
+                <p><strong>Category:</strong> {{ product['category'] }}</p>
+                <p><strong>Price:</strong> ${{ product['price'] }}</p>
+                <p><strong>Stock:</strong> {{ product['stock_limit'] if product['stock_limit'] else 'Unlimited' }}</p>
+                <p><strong>Manufacturer:</strong> {{ product['manufacturer_name'] }} ({{ product['manufacturer_email'] }})</p>
+                <p><strong>Description:</strong> {{ product['description'] }}</p>
+                <p><strong>Status:</strong> {% if product['approved'] == 1 %}✅ Approved{% else %}❌ Rejected{% endif %}</p>
+            </div>
+
+            <div class="btn-container">
+                <a href="{{ url_for('admin_manage_products') }}" class="back-btn">Back to Products</a>
+
+                {% if product['approved'] == -1 %}
+                <form action="{{ url_for('cancel_rejection', product_id=product['id']) }}" method="POST">
+                    <button type="submit" class="cancel-btn">Cancel Rejection</button>
+                </form>
+                {% endif %}
+            </div>
+        {% else %}
+            <h2 style="text-align: center; color: red;">Product Not Found</h2>
+        {% endif %}
+    </div>
+
+</body>
+</html>

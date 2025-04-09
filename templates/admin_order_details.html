@@ -1,0 +1,10 @@
+{% extends "admin_base.html" %}
+
+{% block content %}
+<h2>Order Details</h2>
+<img src="{{ url_for('static', filename='uploads/' + order.product_image) }}" alt="{{ order.product_name }}">
+<p><strong>Product:</strong> {{ order.product_name }}</p>
+<p><strong>Manufacturer:</strong> {{ order.manufacturer_name }}</p>
+<p><strong>Order Date:</strong> {{ order.order_date }}</p>
+<p><strong>Order Time:</strong> {{ order.order_time }}</p>
+{% endblock %}
