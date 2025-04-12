@@ -1,0 +1,143 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Manage Orders</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/styles.css') }}">
+    <style>
+        .order-container {
+            text-align: center;
+            padding: 60px;
+            width: 100%;
+            max-width: 100vw; 
+            margin: 0 auto;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        .order-grid {
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: center;
+            gap: 60px;
+            width: 100%;
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+
+        .order-card {
+            background-color: #f9f9f9;
+            border: 1px solid #ddd;
+            border-radius: 8px;
+            width: 320px;
+            padding: 35px;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+            text-align: left;
+            transition: transform 0.3s ease, box-shadow 0.3s ease;
+        }
+
+        .order-card:hover {
+            transform: scale(1.05);
+            box-shadow: 0px 6px 12px rgba(0, 0, 0, 0.2);
+        }
+
+        .order-card h3 {
+            font-size: 20px;
+            color: #4D0F28;
+            margin-bottom: 10px;
+        }
+
+        .order-card p {
+            font-size: 14px;
+            color: #333;
+            margin: 5px 0;
+        }
+
+        .order-card .update-form {
+            margin-top: 10px;
+        }
+
+        .order-card select {
+            padding: 6px;
+            font-size: 14px;
+            margin-right: 8px;
+        }
+
+        .update-btn {
+            background-color: #4D0F28;
+            padding: 6px 12px;
+            font-size: 14px;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            transition: background-color 0.3s ease;
+        }
+
+        .update-btn:hover {
+            background-color: #333;
+        }
+        .product-img {
+    width: 100%;
+    height: auto;
+    max-height: 200px;
+    object-fit: cover;
+    border-radius: 6px;
+    margin-bottom: 10px;
+}
+    </style>
+</head>
+<body>
+
+<nav class="navbar">
+    <div class="logo">CRAFTCONNECT</div>
+    <ul class="nav-links">
+        <li><a href="{{ url_for('manufacturer_dashboard') }}">Dashboard</a></li>
+        <li><a href="{{ url_for('logout') }}">Logout</a></li>
+    </ul>
+</nav>
+
+<section class="order-container">
+    <h2>Manage Orders</h2>
+
+    {% if orders %}
+    <div class="order-grid">
+        {% for order in orders %}
+        <div class="order-card">
+            <h3>Order ID: {{ order['id'] }}</h3>
+            <img src="{{ url_for('static', filename='uploads/' + order['image']) }}" alt="Product Image" class="product-img">
+            <p><strong>Customer:</strong> {{ order['customer_name'] }}</p>
+            <p><strong>Product:</strong> {{ order['product_name'] }}</p>
+            <p><strong>Quantity:</strong> {{ order['quantity'] }}</p>
+            {% if order['category'] == 'Clothing' %}
+            <p><strong>Size:</strong> {{ order['size'] }}</p>
+            {% endif %}
+            <p><strong>Address:</strong> {{ order['address'] }}</p>
+            <p><strong>Phone:</strong> {{ order['phone'] }}</p>
+            <p><strong>Status:</strong> <span class="status">{{ order['status'] }}</span></p>
+            <p><strong>Order Date:</strong> {{ order['order_date'] }}</p>
+            <p><strong>Total:</strong> ₹{{ order['total_price'] }}</p>
+
+            <div class="update-form">
+                <form action="{{ url_for('update_order_status', order_id=order['id']) }}" method="POST">
+                    <select name="status" required>
+                        <option value="Processing" {% if order['status'] == 'Processing' %}selected{% endif %}>Processing</option>
+                        <option value="Shipped" {% if order['status'] == 'Shipped' %}selected{% endif %} {% if order['status'] == 'Cancelled' %}disabled{% endif %}>Shipped</option>
+                        <option value="Delivered" {% if order['status'] == 'Delivered' %}selected{% endif %} {% if order['status'] == 'Cancelled' %}disabled{% endif %}>Delivered</option>
+                        <option value="Cancelled" {% if order['status'] == 'Cancelled' %}selected{% endif %} {% if order['status'] in ['Shipped', 'Delivered'] %}disabled{% endif %}>Cancelled</option>
+                    </select>
+                    <button type="submit" class="update-btn">Update</button>
+                </form>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+    {% else %}
+        <p>No orders found.</p>
+    {% endif %}
+</section>
+
+</body>
+</html>

@@ -1,0 +1,302 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{ product[1] }} - Product Details</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/styles.css') }}">
+</head>
+<body>
+    <style>
+        .manufacturer-container{
+                margin: 40px auto;
+    max-width: 800px;
+    background-color: #f9f9f9;
+    padding: 20px;
+    border-radius: 8px;
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+    transition: transform 0.3s ease-in-out, box-shadow 0.3s ease-in-out;
+    margin-bottom: 100px;
+}
+
+.manufacturer-container:hover{
+    transform: scale(1.05); /* Slightly enlarge the card */
+    box-shadow: 0px 6px 12px rgba(0, 0, 0, 0.2); /* Add a stronger shadow */
+}
+
+.feedback-container{
+    margin: 40px auto;
+    max-width: 800px;
+    background-color: #f9f9f9;
+    padding: 20px;
+    border-radius: 8px;
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+    transition: transform 0.3s ease-in-out, box-shadow 0.3s ease-in-out;
+    margin-bottom: 100px;
+    align-items: center;
+}
+
+.feedback-container:hover{
+    transform: scale(1.05); /* Slightly enlarge the card */
+    box-shadow: 0px 6px 12px rgba(0, 0, 0, 0.2); /* Add a stronger shadow */
+}
+.size-chart-container label {
+    display: block;
+    margin-top: 20px; /* Adds space above the label */
+    font-size: 16px;
+    font-weight: bold;
+    color:#4D0F28;
+}
+
+.size-selection {
+    display: flex;
+    justify-content: center;
+    gap: 15px;
+    margin-top: 10px;
+}
+
+.size-option {
+    padding: 8px 16px;
+    border: 2px solid #600b30; /* Dark maroon */
+    border-radius: 5px;
+    cursor: pointer;
+    font-weight: bold;
+    transition: 0.3s;
+    text-align: center;
+    width: 60px;
+    user-select: none;
+    text-transform: uppercase;
+    background-color: white;
+    color: #600b30;
+}
+
+.size-option:hover,
+input[type="radio"]:checked + .size-option {
+    background-color: #600b30;
+    color: white;
+}
+
+.size-selection input {
+    display: none;
+}
+
+.button {
+    width: 100%;
+    height: 45px;
+    font-size: 16px;
+    font-weight: bold;
+    text-align: center;
+    background-color: #600b30;
+    color: white;
+    border: none;
+    border-radius: 5px;
+    cursor: pointer;
+    transition: background-color 0.3s ease;
+}
+
+.button:hover {
+    background-color: #450821;
+}
+.flash-messages{
+    color:#4D0F28;
+}
+
+    </style>
+    <nav class="navbar">
+        <div class="logo">CRAFTCONNECT</div>
+        <ul class="nav-links">
+            <li><a href="{{ url_for('customer_dashboard') }}">Dashboard</a></li>
+            <li><a href="{{ url_for('cart') }}">Cart 🛒</a></li>
+            <li><a href="{{ url_for('logout') }}">Logout</a></li>
+        </ul>
+    </nav>
+    {% with messages = get_flashed_messages(with_categories=true) %}
+  {% if messages %}
+    <div class="flash-messages">
+      {% for category, message in messages %}
+        <div class="flash-message {{ category }}">{{ message }}</div>
+      {% endfor %}
+    </div>
+  {% endif %}
+{% endwith %}
+    <section class="product-details-container">
+        <div class="product-image">
+            <img src="{{ url_for('static', filename='uploads/' + product[4]) }}" alt="{{ product[1] }}">
+        </div>
+        <div class="product-details">
+            <h1>{{ product[1] }}</h1>
+            <p>{{ product[2] }}</p>
+            <p class="price">Price: ₹{{ product[3] }}</p>
+            <p class="stock">
+    {% if product[6] is not none and product[6] > 0 %}
+        Available Stock: {{ product[6] }}
+    {% elif product[6] == 0 %}
+        Out of Stock
+    {% else %}
+        Stock: Unlimited
+    {% endif %}
+</p>
+<div class="size-chart-container">
+    {% if product[5] == 'Clothing' %}
+    {% if product[7] %}
+        <button class="button" onclick="openModal()">View Size Chart</button>
+
+        <div id="sizeChartModal" class="modal">
+            <div class="modal-content">
+                <span class="close" onclick="closeModal()">&times;</span>
+                <img src="{{ url_for('static', filename='uploads/' + product[7]) }}" alt="Size Chart" class="size-chart-image">
+            </div>
+        </div>
+    {% else %}
+        <p>No size chart available for this product.</p>
+    {% endif %}
+{% endif %}
+
+<!-- Add to Cart Form -->
+<form action="{{ url_for('add_to_cart', product_id=product[0]) }}" method="POST" class="size-buttons" >
+    {% if product[5] == 'Clothing' %}
+    <div class="size-selection">
+        <input type="radio" id="sizeS" name="size" value="S">
+        <label for="sizeS" class="size-option">S</label>
+    
+        <input type="radio" id="sizeM" name="size" value="M">
+        <label for="sizeM" class="size-option">M</label>
+    
+        <input type="radio" id="sizeL" name="size" value="L">
+        <label for="sizeL" class="size-option">L</label>
+    </div>
+    
+    {% else %}
+        <!-- For non-clothing, add a default size or hidden input -->
+        <input type="hidden" name="size" value="N/A">
+    {% endif %}
+    <button type="submit" class="button">Add to Cart</button>
+</form>
+</div>
+
+    </section>
+    <!-- Manufacturer Details Section -->
+    <section class="manufacturer-container">
+        <h2>Manufacturer Details</h2>
+        <p><strong>Name:</strong> {{ product[9] }}</p>
+        <p><strong>Phone:</strong> {{ product[10] }}</p>
+        <p><strong>WhatsApp:</strong> {{ product[11] }}</p>
+        <p><strong>Address:</strong> {{ product[12] }}</p>        
+    <!-- Contact Manufacturer Button -->
+       {% if session.get('user_id') %}
+         <a href="{{ url_for('contact_manufacturer', product_id=product[0], manufacturer_id=product[8], customer_id=session['user_id']) }}" class="button">
+           Contact Manufacturer
+         </a>
+       {% endif %}
+
+    </section>
+    <section class="feedback-container">
+        <h3>Rate and Review This Product</h3>
+    
+        <!-- Rating Form -->
+        <form method="POST" action="{{ url_for('submit_rating', product_id=product['id']) }}">
+            <label for="rating">Your Rating:</label>
+            <div class="star-rating">
+                <input type="radio" id="star5" name="rating" value="5" required>
+                <label for="star5" title="5 stars">&#9733;</label>
+    
+                <input type="radio" id="star4" name="rating" value="4">
+                <label for="star4" title="4 stars">&#9733;</label>
+    
+                <input type="radio" id="star3" name="rating" value="3">
+                <label for="star3" title="3 stars">&#9733;</label>
+    
+                <input type="radio" id="star2" name="rating" value="2">
+                <label for="star2" title="2 stars">&#9733;</label>
+    
+                <input type="radio" id="star1" name="rating" value="1">
+                <label for="star1" title="1 star">&#9733;</label>
+            </div>
+    
+            <label for="feedback">Your Feedback:</label>
+            <textarea id="feedback" name="feedback" rows="4" placeholder="Write your feedback here..." required></textarea>
+    
+            <button type="submit" class="button">Submit</button>
+        </form>
+    
+        <!-- Display Existing Ratings and Feedback -->
+        <div class="existing-reviews">
+            <h3>Customer Reviews</h3>
+            {% if reviews %}
+                {% for review in reviews %}
+                <div class="review">
+                    <p><strong>{{ review['user_name'] }}</strong> rated it 
+                        <span class="stars">
+                            {% for i in range(review['rating']) %}
+                                &#9733;
+                            {% endfor %}
+                            {% for i in range(5 - review['rating']) %}
+                                &#9734;
+                            {% endfor %}
+                        </span>
+                    </p>
+                    <p>{{ review['feedback'] }}</p>
+                    <p class="review-date">{{ review['timestamp'] }}</p>
+                </div>
+                <hr>
+                {% endfor %}
+            {% else %}
+                <p>No reviews yet. Be the first to review this product!</p>
+            {% endif %}
+        </div>
+    </section>
+
+
+    <section class="similar-products">
+        <h2>Similar Products</h2>
+        <div class="product-grid">
+            {% for similar_product in similar_products %}
+            <div class="product-card">
+                <img src="{{ url_for('static', filename='uploads/' + similar_product[3]) }}" alt="{{ similar_product[1] }}">
+                <h3>{{ similar_product[1] }}</h3>
+                <p>Price: ₹{{ similar_product[2] }}</p>
+                <a href="{{ url_for('product_details', product_id=similar_product[0]) }}" class="button">View Details</a>
+            </div>
+            {% endfor %}
+        </div>
+    </section>
+    <script>
+          document.querySelectorAll('.size-option').forEach(label => {
+        label.addEventListener('click', function () {
+            document.querySelectorAll('.size-option').forEach(l => l.classList.remove('selected'));
+            this.classList.add('selected');
+        });
+    });
+        document.addEventListener("DOMContentLoaded", function () {
+            const productImage = document.querySelector(".product-image img");
+    
+            productImage.addEventListener("click", function () {
+                if (this.style.transform === "scale(2)") {
+                    this.style.transform = "scale(1)";
+                    this.style.cursor = "zoom-in";
+                } else {
+                    this.style.transform = "scale(2)";
+                    this.style.cursor = "zoom-out";
+                }
+            });
+        });
+    </script>
+    <script>
+        function openModal() {
+            document.getElementById("sizeChartModal").style.display = "block";
+        }
+    
+        function closeModal() {
+            document.getElementById("sizeChartModal").style.display = "none";
+        }
+    
+        // Close the modal when clicking outside of it
+        window.onclick = function(event) {
+            const modal = document.getElementById("sizeChartModal");
+            if (event.target === modal) {
+                modal.style.display = "none";
+            }
+        }
+    </script>
+</body>
+</html>

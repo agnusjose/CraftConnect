@@ -1,0 +1,100 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Reported Inquiries - Admin</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/styles.css') }}">
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background-color: #f8f8f8;
+            margin: 0;
+            padding: 0;
+        }
+
+        .navbar {
+            width: 100%;
+            background-color: #4D0F28;
+            color: white;
+            padding: 15px 30px;
+            font-size: 24px;
+            font-weight: bold;
+            box-shadow: 0 2px 6px rgba(0,0,0,0.1);
+        }
+
+        .container {
+            max-width: 1000px;
+            margin: 40px auto;
+            padding: 20px;
+        }
+
+        h2 {
+            color: #4D0F28;
+            text-align: center;
+            margin-bottom: 30px;
+        }
+
+        .report-box {
+            background-color: white;
+            border: 1px solid #ddd;
+            border-left: 6px solid #4D0F28;
+            padding: 20px;
+            border-radius: 10px;
+            margin-bottom: 20px;
+            box-shadow: 0 4px 8px rgba(0,0,0,0.05);
+        }
+
+        .report-box p {
+            margin: 8px 0;
+            font-size: 15px;
+        }
+
+        .report-box img {
+            max-width: 250px;
+            border-radius: 6px;
+            margin-top: 10px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+
+        .report-label {
+            font-weight: bold;
+            color: #4D0F28;
+        }
+
+        .no-reports {
+            text-align: center;
+            color: #999;
+            font-size: 18px;
+            margin-top: 50px;
+        }
+    </style>
+</head>
+<body>
+    <div class="navbar">
+        Admin Panel - Reported Inquiries
+    </div>
+
+    <div class="container">
+        <h2>User Reports</h2>
+
+        {% if reports %}
+            {% for report in reports %}
+                <div class="report-box">
+                    <p><span class="report-label">Reporter:</span> {{ report['reporter_name'] }} ({{ report['reporter_email'] }})</p>
+                    <p><span class="report-label">Reported User:</span> {{ report['reported_name'] }} ({{ report['reported_email'] }})</p>
+                    <p><span class="report-label">Reporter Type:</span> {{ report['reporter_type'].capitalize() }}</p>
+                    <p><span class="report-label">Reason:</span> {{ report['reason'] }}</p>
+                    <p><span class="report-label">Reported On:</span> {{ report['formatted_time'] }}</p>
+                    
+                    {% if report['proof_image'] %}
+                        <p><span class="report-label">Proof Image:</span><br>
+                        <img src="{{ url_for('static', filename='uploads/' + report['proof_image']) }}" alt="proof image"></p>
+                    {% endif %}
+                </div>
+            {% endfor %}
+        {% else %}
+            <p class="no-reports">No reports have been submitted yet.</p>
+        {% endif %}
+    </div>
+</body>
+</html>

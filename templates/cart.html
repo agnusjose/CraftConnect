@@ -1,0 +1,168 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Your Cart</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/styles.css') }}">
+    <style>
+        .cart-container {
+            width: 80%;
+            margin: auto;
+            padding: 20px;
+        }
+
+        .cart-item {
+            display: flex;
+            align-items: center;
+            border-radius: 10px;
+            padding: 15px;
+            margin-bottom: 20px;
+            background-color: #fff;
+            box-shadow: 0px 4px 8px rgba(0, 0, 0, 0.1);
+        }
+
+        .cart-img {
+            width: 150px;
+            height: 150px;
+            object-fit: cover;
+            border-radius: 8px;
+            margin-right: 20px;
+        }
+
+        .cart-details {
+            flex: 1;
+        }
+
+        .cart-details h3 {
+            margin-bottom: 5px;
+            font-size: 1.4em;
+            color: #333;
+        }
+
+        .cart-details p {
+            margin: 5px 0;
+            font-size: 1em;
+            color: #666;
+        }
+
+        .quantity-container {
+            display: flex;
+            align-items: center;
+            margin: 10px 0;
+        }
+
+        .quantity-container input {
+            width: 50px;
+            text-align: center;
+            padding: 5px;
+            margin-left: 10px;
+            border-radius: 5px;
+            border: 1px solid #ccc;
+        }
+
+        .button-container {
+            display: flex;
+            gap: 10px;
+            margin-top: 10px;
+        }
+
+        .remove-btn, .order-btn {
+            flex: 1;
+            text-align: center;
+            padding: 10px 15px;
+            border: none;
+            cursor: pointer;
+            border-radius: 5px;
+            font-size: 1em;
+            font-weight: bold;
+            transition: 0.3s ease;
+        }
+
+        .remove-btn, .order-btn {
+            background-color: #4D0F28;
+            color: white;
+        }
+
+        .remove-btn:hover,
+        .order-btn:hover {
+            color: #F5B7B1;
+        }
+
+        .empty-message {
+            text-align: center;
+            font-size: 1.3em;
+            color:#4D0F28;
+            margin-top: 50px;
+        }
+
+
+    </style>
+</head>
+<body>
+    {% with messages = get_flashed_messages(with_categories=true) %}
+    {% if messages %}
+        <div class="flash-messages">
+            {% for category, message in messages %}
+                <div class="flash-message {{ category }}">{{ message }}</div>
+            {% endfor %}
+        </div>
+    {% endif %}
+    {% endwith %}
+
+    <nav class="navbar">
+        <div class="logo">CRAFTCONNECT</div>
+        <ul class="nav-links">
+            <li><a href="{{ url_for('customer_dashboard') }}">Dashboard</a></li>
+            <li><a href="{{ url_for('browse_products') }}">Browse Products</a></li>
+            <li><a href="{{ url_for('logout') }}">Logout</a></li>
+        </ul>
+    </nav>
+
+    <section class="cart-container">
+        <h2>Your Shopping Cart</h2>
+        {% if cart_items|length > 0 %}
+            {% for item in cart_items %}
+            <div class="cart-item">
+                <img src="{{ url_for('static', filename='uploads/' + item[4]) }}" class="cart-img">
+                <div class="cart-details">
+                    <h3>{{ item[1] }}</h3>
+                    <p><strong>Price:</strong> ₹{{ item[2] }}</p>
+                    <p><strong>Total:</strong> ₹{{ item[2] * item[3] }}</p>   
+                    <p><strong>Size:</strong> {{ item[5] }}</p>
+
+                    <form action="{{ url_for('update_cart_quantity', product_id=item[0]) }}" method="POST" class="quantity-container">
+                        <label><strong>Quantity:</strong></label>
+                        <input type="number" name="quantity" value="{{ item[3] }}" min="1" onchange="this.form.submit()">
+                    </form>
+
+                   <!-- Inside the cart-item loop -->
+                   <div class="button-container">
+                    {% if item[5] != 'N/A' %}
+                        <form action="{{ url_for('remove_from_cart', product_id=item[0], size=item[5]) }}" method="POST">
+                    {% else %}
+                        <form action="{{ url_for('remove_from_cart', product_id=item[0]) }}" method="POST">
+                    {% endif %}
+                        <button type="submit" class="remove-btn">Remove</button>
+                    </form>
+                </div>
+                
+                
+
+                </div>
+            </div>
+            {% endfor %}
+
+            <div class="order-now-container">
+                <form action="{{ url_for('checkout') }}" method="POST">
+                    <button type="submit" class="order-btn">Order Now</button>
+                </form>
+            </div>
+        {% else %}
+            <div class="empty-message">
+                Your cart is empty.<br>
+            </div>
+        {% endif %}
+    </section>
+</body>
+</html>

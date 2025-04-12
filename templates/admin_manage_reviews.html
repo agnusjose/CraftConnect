@@ -1,0 +1,187 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Manage Product Reviews - Admin</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/styles.css') }}">
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: #f8f9fa;
+            margin: 0;
+            padding: 0;
+        }
+
+        .navbar {
+            background-color: #4D0F28;
+            color: white;
+            padding: 15px;
+            font-size: 20px;
+            text-align: center;
+        }
+
+        .section-title {
+            text-align: center;
+            margin: 20px 0;
+            color: #4D0F28;
+        }
+
+        .review-cards-container {
+            max-width: 900px;
+            margin: 0 auto;
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+        }
+
+        .review-card {
+            background-color: #fff;
+            border-radius: 8px;
+            box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+            padding: 20px;
+            display: flex;
+            gap: 20px;
+            align-items: flex-start;
+        }
+
+        .product-image {
+            flex-shrink: 0;
+        }
+
+        .product-image img {
+            width: 100px;
+            height: 100px;
+            border-radius: 5px;
+            object-fit: cover;
+            border: 1px solid #ddd;
+        }
+
+        .review-content {
+            flex-grow: 1;
+        }
+
+        .review-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 10px;
+        }
+
+        .review-header h3 {
+            margin: 0;
+            font-size: 18px;
+            color: #4D0F28;
+        }
+
+        .status {
+            font-weight: bold;
+            padding: 5px 10px;
+            border-radius: 4px;
+            font-size: 14px;
+        }
+
+        .status.approved {
+            background-color: #d4edda;
+            color: #4D0F28;
+            border: 1px solid #c3e6cb;
+        }
+
+        .status.rejected {
+            background-color: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+        }
+
+        .review-card {
+            background-color: #fff;
+            border-radius: 8px;
+            box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+            padding: 20px;
+            display: flex;
+            gap: 20px;
+            align-items: center; /* ⬅ change from flex-start to center */
+        }
+
+
+        .action-links {
+            margin-top: 10px;
+            display: flex;
+            gap: 15px;
+        }
+
+        .approve, .reject {
+            padding: 8px 14px;
+            text-decoration: none;
+            color: #fff;
+            border-radius: 5px;
+            font-size: 14px;
+            transition: background-color 0.3s ease;
+        }
+
+        .approve {
+            background-color: #28a745;
+        }
+
+        .approve:hover {
+            background-color: #218838;
+        }
+
+        .reject {
+            background-color: #dc3545;
+        }
+
+        .reject:hover {
+            background-color: #c82333;
+        }
+        .dashboard-link {
+            color: white;
+            font-size: 16px;
+            text-decoration: none;
+            font-weight: bold;
+        }
+
+        .dashboard-link:hover {
+            text-decoration: underline;
+        }
+
+    </style>
+</head>
+<body>
+
+<nav class="navbar">
+    <span>CRAFTCONNECT - Admin</span>
+    <a href="{{ url_for('admin_dashboard') }}" class="dashboard-link">Dashboard</a>
+</nav>
+<h2 class="section-title">Manage Product Reviews</h2>
+
+<div class="review-cards-container">
+    {% for r in reviews %}
+    <div class="review-card">
+        <div class="product-image">
+            <img src="{{ url_for('static', filename='uploads/' + r['product_image']) }}" alt="{{ r['product_name'] }}">
+        </div>
+        <div class="review-content">
+            <div class="review-header">
+                <h3>{{ r['product_name'] }}</h3>
+                <span class="status {{ 'approved' if r['approved'] == 1 else 'rejected' }}">
+                    {{ 'Approved' if r['approved'] == 1 else 'Rejected' }}
+                </span>
+            </div>
+            <p><strong>User:</strong> {{ r['user_name'] }}</p>
+            <p><strong>Rating:</strong> {{ r['rating'] }} ⭐</p>
+            <p><strong>Feedback:</strong> {{ r['feedback'] }}</p>
+            <div class="action-links">
+                {% if r['approved'] == 0 %}
+                    <a href="{{ url_for('approve_review', review_id=r['id']) }}" class="approve">Approve</a>
+                {% else %}
+                    <a href="{{ url_for('reject_review', review_id=r['id']) }}" class="reject">Reject</a>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+    {% endfor %}
+</div>
+
+</body>
+</html>

@@ -1,0 +1,10 @@
+{% extends "admin_base.html" %}
+
+{% block content %}
+<h2>Review Details</h2>
+<img src="{{ url_for('static', filename='uploads/' + review.product_image) }}" alt="{{ review.product_name }}">
+<p><strong>Product:</strong> {{ review.product_name }}</p>
+<p><strong>Manufacturer:</strong> {{ review.manufacturer_name }}</p>
+<p><strong>Rating:</strong> ⭐ {{ review.rating }}/5</p>
+<p><strong>Feedback:</strong> "{{ review.feedback }}"</p>
+{% endblock %}

@@ -1,0 +1,10 @@
+{% extends "admin_base.html" %}
+
+{% block content %}
+<h2>Rejected Product Details</h2>
+<img src="{{ url_for('static', filename='uploads/' + product.image) }}" alt="{{ product.name }}">
+<p><strong>Product:</strong> {{ product.name }}</p>
+<p><strong>Description:</strong> {{ product.description }}</p>
+<p><strong>Category:</strong> {{ product.category }}</p>
+<p style="color: red;"><strong>Status:</strong> ❌ Rejected</p>
+{% endblock %}

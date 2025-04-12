@@ -1,0 +1,82 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Messages from Customers</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+        }
+        .customer-list {
+            list-style-type: none;
+            padding: 0;
+        }
+        .customer-list li {
+            padding: 10px;
+            background-color: #f5f5f5;
+            margin-bottom: 5px;
+            border-radius: 5px;
+            cursor: pointer;
+        }
+        .customer-list li:hover {
+            background-color: #ddd;
+        }.navbar {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 15px 30px;
+    background: #4D0F28;
+    color: white;
+    box-shadow: 0px 4px 8px rgba(0, 0, 0, 0.1);
+    max-width: 100%;
+    flex-wrap: wrap;
+    margin-bottom: 30px;
+}
+
+.nav-links {
+    list-style: none;
+    display: flex;
+    gap: 20px;
+}
+
+.nav-links a {
+    text-decoration: none;
+    color: white;
+    font-size: 16px;
+    font-weight: bold;
+    transition: color 0.3s ease;
+}
+
+.nav-links a:hover {
+    color: #F5B7B1;
+}
+    </style>
+</head>
+<body>
+    <nav class="navbar">
+        <div class="logo">CRAFTCONNECT</div>
+        <ul class="nav-links">
+            <li>
+                <a href="{% if session.get('user_type') == 'customer' %}/customer_dashboard{% else %}/manufacturer_dashboard{% endif %}" class="dashboard-btn">Dashboard</a>
+            </li>
+            <li><a href="{{ url_for('logout') }}">Logout</a></li>
+        </ul>
+    </nav>
+    <h1>Messages from Customers</h1>
+    <ul class="customer-list">
+        {% for customer in customers %}
+            <li onclick="viewChat('{{ customer.id }}')">
+                {{ customer.name }} (Customer ID: {{ customer.id }})
+            </li>
+        {% endfor %}
+    </ul>
+
+    <script>
+        function viewChat(customer_id) {
+            // Redirect to the chat interface with the selected customer
+            window.location.href = `/view_customer_chat/{{ manufacturer_id }}/${customer_id}`;
+        }
+    </script>
+</body>
+</html>

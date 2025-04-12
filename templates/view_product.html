@@ -1,0 +1,200 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{ product['name'] }}</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/styles.css') }}">
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            margin: 0;
+            background-color: #fffdf9;
+        }
+
+        .navbar {
+            background-color: #4D0F28;
+            padding: 10px 20px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            color: white;
+        }
+
+        .nav-links li {
+            display: inline;
+            margin-left: 20px;
+        }
+
+        .nav-links a {
+            color: white;
+            text-decoration: none;
+            font-weight: bold;
+        }
+
+        .product-details {
+            display: flex;
+            flex-wrap: wrap;
+            max-width: 900px;
+            margin: 50px auto 30px;
+            background-color: white;
+            border-radius: 15px;
+            box-shadow: 0 8px 20px rgba(0, 0, 0, 0.08);
+            overflow: hidden;
+        }
+
+        .product-image {
+            flex: 1 1 40%;
+            padding: 20px;
+            text-align: center;
+        }
+
+        .product-image img {
+            max-width: 100%;
+            border-radius: 12px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+        }
+
+        .product-info {
+            flex: 1 1 60%;
+            padding: 30px;
+        }
+
+        .product-info h2 {
+            color: #4D0F28;
+            font-size: 30px;
+            margin-bottom: 10px;
+        }
+
+        .product-info p {
+            font-size: 18px;
+            margin: 10px 0;
+            color: #444;
+        }
+
+        .product-info strong {
+            color: #222;
+        }
+
+        .size-chart {
+            max-width: 900px;
+            margin: 0 auto;
+            text-align: center;
+        }
+
+        .size-chart h3 {
+            color: #bf4f00;
+        }
+
+        .size-chart img {
+            max-width: 400px;
+            margin: 20px auto;
+            display: block;
+            border-radius: 10px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+        }
+
+        .product-reviews {
+            margin-top: 30px;
+            padding: 20px;
+            background-color: #f4f4f4;
+            border-radius: 10px;
+            max-width: 700px;
+            margin-left: auto;
+            margin-right: auto;
+        }
+
+        .product-reviews h3 {
+            text-align: center;
+            color: #d17738;
+        }
+
+        .product-reviews ul {
+            list-style: none;
+            padding: 0;
+        }
+
+        .product-reviews li {
+            margin-bottom: 20px;
+            padding: 15px;
+            background-color: white;
+            border-radius: 10px;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+        }
+
+        .product-reviews li strong {
+            color: #333;
+        }
+
+        .product-reviews li em {
+            display: block;
+            margin: 5px 0;
+            color: #555;
+        }
+
+        .product-reviews li small {
+            color: #888;
+        }
+    </style>
+</head>
+<body>
+
+    <nav class="navbar">
+        <div class="logo">CRAFTCONNECT</div>
+        <ul class="nav-links">
+            <li><a href="{{ url_for('manage_products') }}">Back to Products</a></li>
+            <li><a href="{{ url_for('logout') }}">Logout</a></li>
+        </ul>
+    </nav>
+
+    <section class="product-details">
+        <div class="product-image">
+            <img src="{{ url_for('static', filename='uploads/' + product['image']) }}" alt="{{ product['name'] }}">
+        </div>
+        <div class="product-info">
+            <h2>{{ product['name'] }}</h2>
+            <p>{{ product['description'] }}</p>
+            <p><strong>Price:</strong> ₹{{ product['price'] }}</p>
+            <p><strong>Category:</strong> {{ product['category'] }}</p>
+            <p><strong>Stock:</strong>
+                {% if product['stock_limit'] is not none and product['stock_limit'] > 0 %}
+                    {{ product['stock_limit'] }}
+                {% elif product['stock_limit'] == 0 %}
+                    Out of Stock
+                {% else %}
+                    Unlimited
+                {% endif %}
+            </p>
+        </div>
+    </section>
+
+    {% if product['size_chart'] %}
+    <section class="size-chart">
+        <h3>Size Chart</h3>
+        <img src="{{ url_for('static', filename='uploads/' + product['size_chart']) }}" alt="Size Chart">
+    </section>
+    {% endif %}
+
+    {% if reviews %}
+    <section class="product-reviews">
+        <h3>Customer Feedback</h3>
+        <ul>
+            {% for review in reviews %}
+                <li>
+                    <strong>{{ review['user_name'] }}</strong><br>
+                    Rated: ⭐ {{ review['rating'] }}/5<br>
+                    <em>{{ review['feedback'] }}</em><br>
+                    <small>{{ review['timestamp'] }}</small>
+                </li>
+            {% endfor %}
+        </ul>
+    </section>
+    {% else %}
+    <section class="product-reviews">
+        <h3>Customer Feedback</h3>
+        <p style="text-align: center;">No feedback received yet for this product.</p>
+    </section>
+    {% endif %}
+
+</body>
+</html>

@@ -1,0 +1,79 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Notifications</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/styles.css') }}">
+    <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css">
+    <style>
+        .notification-container {
+            max-width: 1000px;
+            margin: auto;
+            padding: 20px;
+            background: #fff;
+            box-shadow: 0px 0px 10px rgba(0, 0, 0, 0.1);
+            border-radius: 10px;
+            margin-top: 50px;
+        }
+        .notification-container h2{
+color: #4D0F28;
+text-align: center;
+        }
+        .notification-item {
+            padding: 10px;
+            border-bottom: 1px solid #ddd;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            color: #4D0F28;
+        }
+        .notification-item.unread {
+            font-weight: bold;
+            background: #f8d7da;
+        }
+        .mark-read {
+            cursor: pointer;
+            color: #4D0F28;
+            text-decoration: none;
+        }
+        .button:hover {
+            color: #F5B7B1;
+            text-decoration: none;
+        }
+    </style>
+</head>
+<body>
+
+    <div class="notification-container">
+        <h2>Notifications</h2>
+        {% if notifications %}
+            {% for notification in notifications %}
+                <div class="notification-item {% if not notification[2] %} unread {% endif %}" id="notif-{{ notification[0] }}">
+                    <span>{{ notification[1] }}</span>
+                    {% if not notification[2] %}
+                    <span class="mark-read" onclick="markAsRead('{{ notification[0] }}')">Mark as Read</span>
+                    {% endif %}
+                </div>
+            {% endfor %}
+        {% else %}
+            <p>No notifications available.</p>
+        {% endif %}
+        <a href="{{ url_for('manufacturer_dashboard') }}" class="button">Back to Dashboard</a>
+    </div>
+
+    <script>
+        function markAsRead(notificationId) {
+            fetch(`/mark_notification_read/${notificationId}`, {
+                method: "POST"
+            }).then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    document.getElementById(`notif-${notificationId}`).classList.remove("unread");
+                }
+            });
+        }
+    </script>
+
+</body>
+</html>

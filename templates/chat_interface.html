@@ -1,0 +1,473 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Chat Interface</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.0.1/socket.io.js"></script>
+    <style>
+       body {
+    font-family: Arial, sans-serif;
+    margin: 0;
+    padding: 0;
+    background-color: #f5f5f5;
+    display: flex;
+    flex-direction: column; /* Stack navbar on top, chat below */
+    min-height: 100vh;
+}
+
+.navbar {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 15px 30px;
+    background: #4D0F28;
+    color: white;
+    box-shadow: 0px 4px 8px rgba(0, 0, 0, 0.1);
+    max-width: 100%;
+    flex-wrap: wrap;
+    margin-bottom: 30px;
+}
+
+.nav-links {
+    list-style: none;
+    display: flex;
+    gap: 20px;
+}
+
+.nav-links a {
+    text-decoration: none;
+    color: white;
+    font-size: 16px;
+    font-weight: bold;
+    transition: color 0.3s ease;
+}
+
+.nav-links a:hover {
+    color: #F5B7B1;
+}
+.chat-container {
+    width: 700px;              /* fixed width */
+    height: 590px;             /* fixed height */
+    background-color: white;
+    border: 1px solid #ccc;
+    border-radius: 10px;
+    display: flex;
+    flex-direction: column;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);  /* optional: for nice depth effect */
+}
+
+        .chat-header {
+            padding: 10px;
+            background-color: #4D0F28;
+            color: white;
+            text-align: center;
+            border-top-left-radius: 10px;
+            border-top-right-radius: 10px;
+        }
+        .chat-box {
+            flex: 1;
+            padding: 10px;
+            overflow-y: scroll;
+            background-color: #f1f1f1;
+        }
+        .chat-message {
+            margin-bottom: 10px;
+            padding: 10px;
+            border-radius: 10px;
+            max-width: 60%;
+            clear: both;
+        }
+        .chat-message.sender {
+            background-color: #4D0F28;
+            color: white;
+            float: right;
+            text-align: right;
+        }
+        .chat-message.receiver {
+            background-color: #e0e0e0;
+            color: black;
+            float: left;
+            text-align: left;
+        }
+        .chat-input-container {
+            display: flex;
+            padding: 10px;
+            border-top: 1px solid #ccc;
+        }
+        .chat-input-container input {
+            flex: 1;
+            padding: 10px;
+            border: 1px solid #ccc;
+            border-radius: 5px;
+        }
+        .chat-input-container button {
+            padding: 10px;
+            margin-left: 10px;
+            background-color: #4D0F28;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+        }
+        .chat-message img {
+            max-width: 200px;
+            border-radius: 10px;
+            display: block;
+            margin-top: 5px;
+        }
+
+        /* Ensure the message container is cleared properly */
+        .chat-message.sender img {
+            float: right;
+            margin-left: auto;  /* Pushes the image to the right */
+        }
+
+        .chat-message.receiver img {
+            float: left;
+            margin-right: auto;  /* Pushes the image to the left */
+        }
+
+        /* Clear floats after each message */
+        .chat-message::after {
+            content: "";
+            display: table;
+            clear: both;
+        }
+
+        .report-chat-button {
+            background-color: #b30000;
+            color: white;
+            border: none;
+            padding: 10px 12px;
+            border-radius: 5px;
+            cursor: pointer;
+            margin-left: 10px;
+            font-size: 14px;
+            font-weight: bold;
+            transition: background-color 0.3s ease;
+        }
+
+        .report-chat-button:hover {
+              background-color: #ff1a1a;
+        }
+        .report-icon-button {
+    background-color: transparent;
+    border: none;
+    font-size: 20px;
+    margin-left: 8px;
+    cursor: pointer;
+    color: #b30000;
+    transition: transform 0.2s ease;
+}
+
+.report-icon-button:hover {
+    transform: scale(1.2);
+    color: #ff1a1a;
+}
+
+/* Styled Report Modal */
+.styled-modal {
+    display: none;
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0,0,0,0.6);
+    justify-content: center;
+    align-items: center;
+    z-index: 999;
+}
+
+.report-form {
+    background: white;
+    padding: 30px;
+    border-radius: 12px;
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.3);
+    width: 400px;
+    max-width: 90%;
+    display: flex;
+    flex-direction: column;
+    gap: 15px;
+    font-family: Arial, sans-serif;
+    color: #4D0F28;
+    border-top: 6px solid #4D0F28;
+}
+
+.report-form h3 {
+    margin-top: 0;
+    color: #4D0F28;
+    text-align: center;
+}
+
+.report-form label {
+    font-weight: bold;
+    font-size: 14px;
+}
+
+.report-form textarea,
+.report-form input[type="file"] {
+    padding: 10px;
+    border-radius: 6px;
+    border: 1px solid #ccc;
+    font-size: 14px;
+    width: 100%;
+    box-sizing: border-box;
+}
+
+.modal-buttons {
+    display: flex;
+    justify-content: space-between;
+    gap: 10px;
+}
+
+.submit-report-btn {
+    background-color: #4D0F28;
+    color: white;
+    padding: 10px 20px;
+    border-radius: 6px;
+    border: none;
+    cursor: pointer;
+    font-weight: bold;
+}
+
+.submit-report-btn:hover {
+    background-color: #701938;
+}
+
+.cancel-report-btn {
+    background-color: #ccc;
+    color: #4D0F28;
+    padding: 10px 20px;
+    border-radius: 6px;
+    border: none;
+    cursor: pointer;
+    font-weight: bold;
+}
+
+.cancel-report-btn:hover {
+    background-color: #bbb;
+}
+
+    </style>
+</head>
+<body>
+    <nav class="navbar">
+        <div class="logo">CRAFTCONNECT</div>
+        <ul class="nav-links">
+            <li>
+                <a href="{% if session.get('user_type') == 'customer' %}/customer_dashboard{% else %}/manufacturer_dashboard{% endif %}" class="dashboard-btn">Dashboard</a>
+            </li>
+            <li><a href="{{ url_for('logout') }}">Logout</a></li>
+        </ul>
+    </nav>
+    
+    <div class="main-content" style="flex: 1; display: flex; justify-content: center; align-items: center;">
+        <div class="chat-container">
+            <div class="chat-header">
+                <h2>
+                    Contact with 
+                    {% if session['user_type'] == 'customer' %}
+                        {{ manufacturer_name }}
+                    {% else %}
+                        {{ customer_name }}
+                    {% endif %}
+                </h2>
+            </div>
+            <div class="chat-box" id="chat-box"></div>
+            <div class="chat-input-container">
+                <input type="text" id="chat-message" placeholder="Type your message...">
+                <input type="file" id="image-input" accept="image/*">
+                
+                <button onclick="sendMessage()">Send</button>
+            
+                <!-- 🔴 Small Red Icon Button -->
+                <button class="report-icon-button" onclick="openReportModal({{ manufacturer_id if session['user_type'] == 'customer' else customer_id }})" title="Report Chat">
+                    🚩
+                </button>
+            </div>
+            
+        </div>
+    </div>
+    
+
+    <script>
+        var socket = io();
+        var chatBox = document.getElementById("chat-box");
+        var roomId = "{{ manufacturer_id }}_{{ customer_id }}";
+        var userType = "{{ session.get('user_type', '') }}";  
+        var receivedMessages = new Set();  // To prevent duplicate messages
+
+        // Join the room
+        socket.emit('join_room', roomId);
+
+// Load chat history once
+// Fetch chat messages from the API and render them
+fetch(`/get_messages?customer_id={{ customer_id }}&manufacturer_id={{ manufacturer_id }}`)
+    .then(response => response.json())
+    .then(chatMessages => {
+        // Check if there are any errors
+        if (chatMessages.error) {
+            console.error(chatMessages.error);
+        } else {
+            // Process each message
+            chatMessages.forEach(function(msg) {
+                if (msg.is_image && msg.image_url) {
+                    // If it's an image message, display the image
+                    addMessage(msg.sender_role, null, msg.is_sender, msg.id, true, msg.image_url);
+                } else if (msg.message) {
+                    // If it's a text message, display the message
+                    addMessage(msg.sender_role, msg.message, msg.is_sender, msg.id, false, null);
+                }
+            });
+        }
+    })
+    .catch(err => console.error('Error fetching chat messages:', err));
+
+
+// Function to add a message to the chat box
+function addMessage(sender, message, is_sender, messageId, isImage = false, image_url = null) {
+    // Prevent duplicate messages
+    if (messageId && receivedMessages.has(messageId)) return;
+    if (messageId) receivedMessages.add(messageId);
+
+    var messageDiv = document.createElement("div");
+    messageDiv.classList.add("chat-message");
+
+    if (is_sender) {
+        messageDiv.classList.add("sender");  // Message will appear on the right
+    } else {
+        messageDiv.classList.add("receiver");  // Message will appear on the left
+    }
+
+    // Handle image or text messages
+    if (isImage && image_url) {
+        var img = document.createElement("img");
+        img.src = image_url;
+        img.alt = "Image message";
+        img.style.maxWidth = '200px';
+        img.style.borderRadius = '10px';
+        img.style.display = 'block';
+        img.style.marginTop = '5px';
+
+        messageDiv.appendChild(img);  // Append the image to the message div
+    } else if (message) {
+        var messageText = document.createElement("div");
+        messageText.textContent = message;
+        messageDiv.appendChild(messageText);
+    }
+    
+
+    chatBox.appendChild(messageDiv);
+    chatBox.scrollTop = chatBox.scrollHeight;  // Scroll to the bottom
+}
+
+
+
+
+
+        // Receive new messages from the server
+        socket.on('receive_message', function(data) {
+            if (data.is_image) {
+            
+                    return;  // Ignore messages sent by the user themselves
+
+            } else {
+                addMessage(data.sender, data.message, data.is_sender, Date.now(), false);  // Text message
+            }
+        });
+
+        function sendMessage() {
+            var messageInput = document.getElementById("chat-message");
+            var imageInput = document.getElementById("image-input");
+
+            var message = messageInput.value.trim();
+            var imageFile = imageInput.files[0];  // Get the file from the input field
+
+            // Check if both the message and image file are empty, and return if so
+            if (!message && !imageFile) {
+                return;  // Do nothing if there's no message or image to send
+            }
+
+            var data = {
+                message: message || "",  // Set an empty string if the message is null
+                sender: userType,  // 'manufacturer' or 'customer'
+                manufacturer_id: "{{ manufacturer_id }}",
+                customer_id: "{{ customer_id }}",
+                is_image: imageFile ? true : false
+            };
+
+            if (imageFile) {
+                var formData = new FormData();
+                formData.append('image', imageFile);
+                formData.append('message_data', JSON.stringify(data));
+
+                var xhr = new XMLHttpRequest();
+                xhr.open("POST", "/upload_image", true);
+                xhr.onload = function () {
+                    if (xhr.status === 200) {
+                        var response = JSON.parse(xhr.responseText);
+                        data.image_url = response.image_url;
+                        data.is_image = true;
+                        data.message = null;  // Clear message to avoid duplicate insert
+
+                        // Emit the image message via Socket.IO
+                        socket.emit('send_message', data);
+                        addMessage(userType, null, true, Date.now(), true, data.image_url);
+                    }
+                };
+
+                xhr.send(formData);
+            } else {
+                // Emit text message via Socket.IO
+                socket.emit('send_message', data);
+
+                // Locally add the text message for the sender
+                addMessage(userType, message, true, Date.now(), false);
+            }
+
+            // Clear the input fields
+            messageInput.value = "";
+            imageInput.value = null;
+        }
+        function openReportModal(reportedId) {
+            document.getElementById("reportedUserId").value = reportedId;
+            document.getElementById("reportModal").style.display = "flex";
+        }
+
+        function closeReportModal() {
+             document.getElementById("reportModal").style.display = "none";
+        }
+
+    </script>
+
+    <!-- Report Modal -->
+    <!-- Styled Report Modal -->
+    <div id="reportModal" class="styled-modal">
+      <form method="POST" action="/report_user" enctype="multipart/form-data" class="report-form">
+        <h3>🚩 Report This Chat</h3>
+        
+        <input type="hidden" name="reporter_id" value="{{ session['user_id'] }}">
+        <input type="hidden" name="reporter_type" value="{{ session['user_type'] }}">
+        <input type="hidden" name="reported_id" id="reportedUserId">
+
+        <label for="reason">Reason for Reporting:</label>
+        <textarea name="reason" required placeholder="Explain the issue..." rows="4"></textarea>
+
+        <label for="proof_image">Upload Screenshot (Optional):</label>
+        <input type="file" name="proof_image" accept="image/*">
+
+        <div class="modal-buttons">
+            <button type="submit" class="submit-report-btn">Submit</button>
+            <button type="button" class="cancel-report-btn" onclick="closeReportModal()">Cancel</button>
+        </div>
+      </form>
+    </div>
+
+
+
+
+</body>
+</html>

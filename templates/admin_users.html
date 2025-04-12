@@ -1,0 +1,213 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Manage Users</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/styles.css') }}">
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background-color: #f8f9fa;
+            margin: 0;
+            padding: 0;
+        }
+        .navbar {
+            width: 100%;
+            background-color: #4a0c1c;
+            padding: 15px;
+            color: white;
+            font-size: 20px;
+            font-weight: bold;
+            text-align: center;
+        }
+        .container {
+            max-width: 900px;
+            margin: 20px auto;
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 2px 2px 10px rgba(0, 0, 0, 0.1);
+        }
+        h1 {
+            text-align: center;
+            color: #4a0c1c;
+            margin-bottom: 20px;
+        }
+        .user-card {
+            display: flex;
+            align-items: center;
+            background: white;
+            border-radius: 8px;
+            padding: 15px;
+            margin-bottom: 15px;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+            transition: 0.3s;
+            cursor: pointer;
+        }
+        .user-card:hover {
+            transform: scale(1.02);
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.15);
+        }
+        .user-avatar {
+            width: 50px;
+            height: 50px;
+            border-radius: 50%;
+            background-color: #4a0c1c;
+            color: white;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 18px;
+            font-weight: bold;
+            margin-right: 15px;
+        }
+        .user-info {
+            flex: 1;
+        }
+        .user-name {
+            font-size: 18px;
+            font-weight: bold;
+            color: #4a0c1c;
+        }
+        .user-email {
+            font-size: 14px;
+            color: #4a0c1c;
+        }
+        .action-btn {
+            background-color: #4a0c1c;
+            color: white;
+            border: none;
+            padding: 8px 12px;
+            text-decoration: none;
+            border-radius: 5px;
+            cursor: pointer;
+            transition: 0.3s;
+            margin-left: 10px;
+        }
+        .action-btn:hover {
+            background-color: #6a1328;
+        }
+
+    
+    .search-container {
+        margin-bottom: 20px;
+        text-align: center;
+    }
+
+    #search-bar {
+        width: 80%;
+        padding: 10px;
+        font-size: 16px;
+        border: 1px solid #ccc;
+        border-radius: 5px;
+        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+        transition: 0.3s;
+    }
+
+    #search-bar:focus {
+        outline: none;
+        border-color: #4a0c1c;
+        box-shadow: 0 4px 6px rgba(0, 0, 0, 0.2);
+    }
+
+
+    .filter-container {
+        margin-bottom: 20px;
+        text-align: center;
+    }
+
+    #user-filter {
+        padding: 10px;
+        font-size: 16px;
+        border: 1px solid #ccc;
+        border-radius: 5px;
+        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+        transition: 0.3s;
+    }
+
+    #user-filter:focus {
+        outline: none;
+        border-color: #4a0c1c;
+        box-shadow: 0 4px 6px rgba(0, 0, 0, 0.2);
+    }
+
+
+    </style>
+</head>
+<body>
+    <div class="navbar">CRAFTCONNECT</div>
+
+    <div class="container">
+        <h1>Manage Users</h1>
+        <div class="search-container">
+            <input 
+                type="text" 
+                id="search-bar" 
+                placeholder="Search by name or email..." 
+                oninput="filterUsers()" 
+            />
+        </div>
+        <div class="filter-container">
+            <select id="user-filter" onchange="filterUsers()">
+                <option value="all">All</option>
+                <option value="customer">Customer</option>
+                <option value="manufacturer">Manufacturer</option>
+            </select>
+        </div>
+        <div id="users-list">
+        {% for user in users %}
+        <div class="user-card" data-user-type="{{ user.user_type }}" onclick="window.location.href='/admin/user/{{ user.id }}'">
+            <div class="user-avatar">{{ user.name[0] }}</div>
+            <div class="user-info">
+                <div class="user-name">{{ user.name }}</div>
+                <div class="user-email">{{ user.email }}</div>
+                <div class="user-status">
+                    {% if user.suspended == 1 %}
+                        🔴 Suspended
+                    {% elif user.is_logged_in == 1 %}
+                        🟢 Active
+                    {% else %}
+                        ⚫ Inactive
+                    {% endif %}
+
+                </div>
+            </div>
+            <a href="/admin/user/delete/{{ user.id }}" class="action-btn">Delete</a>
+            {% if user.suspended == 0 %}
+                <a href="/admin/user/suspend/{{ user.id }}" class="action-btn">Suspend</a>
+            {% else %}
+                <a href="/admin/user/restore/{{ user.id }}" class="action-btn">Restore</a>
+            {% endif %}
+        </div>
+        {% endfor %}
+        </div>
+    </div>
+
+    <script>
+        function filterUsers() {
+            const searchQuery = document.getElementById("search-bar").value.toLowerCase();
+            const userFilter = document.getElementById("user-filter").value;
+            const userCards = document.querySelectorAll(".user-card");
+    
+            userCards.forEach(card => {
+                const userName = card.querySelector(".user-name").textContent.toLowerCase();
+                const userEmail = card.querySelector(".user-email").textContent.toLowerCase();
+                const userType = card.getAttribute("data-user-type").toLowerCase();
+    
+                // Check if the card matches the search query and filter
+                const matchesSearch = userName.includes(searchQuery) || userEmail.includes(searchQuery);
+                const matchesFilter = userFilter === "all" || userType === userFilter;
+    
+                if (matchesSearch && matchesFilter) {
+                    card.style.display = "flex"; // Show matching user
+                } else {
+                    card.style.display = "none"; // Hide non-matching user
+                }
+            });
+        }
+    </script>
+
+</body>
+</html>
